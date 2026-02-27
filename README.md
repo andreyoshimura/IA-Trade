@@ -125,3 +125,5 @@ Construir sistema quantitativo consistente, com:
 Sem promessas irreais.  
 Sem alavancagem irresponsável.  
 Sem improviso.
+
+source venv/bin/activate sempre que for usar
