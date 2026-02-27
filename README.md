@@ -1,51 +1,127 @@
-# IA-Trade
 
-Sistema de trading quantitativo evolutivo, iniciado com foco em validação estatística antes de qualquer automação.
+### Características
 
-Projeto estruturado para evoluir de:
-
-Manual → Semi-automático → Automático → Autônomo
-
----
-
-# Situação Atual
-
-## Capital Base
-- 300 USD
-- Binance Futures (USDT-M)
-- Risco por trade: 1%
-
-## Estratégia Testada (Pullback 15m)
-
-Lógica:
-- Tendência 1h via EMA 50
-- Pullback 15m
-- RSI filtro
-- Stop ATR * 1.8
-- Target 2.5R
-
-## Resultado do Backtest
-
-Initial capital: 300  
-Final capital: 264  
-Total trades: 33  
-Winrate: 18.2%  
-Profit factor: 0.55  
-Expectancy: negativa  
-Max drawdown: -15.7%
-
-### Conclusão
-
-- Estratégia não possui edge.
-- Profit factor < 1.
-- Expectancy negativa.
-- Não deve ser automatizada.
-
-Decisão: abandonar modelo pullback.
+- Backtester funcional
+- Curva de capital
+- Cálculo de drawdown
+- Métricas completas
+- Estrutura preparada para múltiplas estratégias
 
 ---
 
-# Arquitetura Atual
+# Decisão Estratégica
 
-Estrutura modular pronta para escalar:
+Pullback intraday em BTC 15m é estruturalmente frágil.
 
+Próximo modelo a ser implementado:
+
+## Breakout Estrutural com Filtro de Tendência
+
+Timeframe principal: 15m  
+Filtro macro: 1h EMA 200  
+
+### Regras Compra
+
+1. Close 1h > EMA 200  
+2. Rompimento da máxima das últimas 20 velas (15m)  
+3. Volume acima da média 20  
+4. Stop = ATR * 1.5  
+5. Target = 2R  
+
+Venda espelhada.
+
+### Justificativa
+
+- BTC responde melhor a expansão do que a pullback curto.
+- Breakout tem estatística mais favorável em cripto.
+- Matemática mais saudável para R:R 2.
+
+---
+
+# Roadmap
+
+## Fase 1 – Validação Técnica (Atual)
+
+- Backtester implementado
+- Estratégia 1 testada e descartada
+- Métricas estatísticas funcionando
+
+### Próximo
+- Implementar breakout estrutural
+- Rodar backtest com 2 anos de dados
+- Validar:
+  - Profit factor > 1.3
+  - Winrate > 35%
+  - Drawdown aceitável (<20%)
+
+---
+
+## Fase 2 – Robustez Estatística
+
+- Paginação para histórico > 2 anos
+- Walk-forward validation
+- Análise de estabilidade de parâmetros
+- Curva de capital visual
+- Monte Carlo básico
+
+---
+
+## Fase 3 – Paper Trade
+
+- Bot rodando em tempo real
+- Sinais enviados via Telegram
+- Registro automático (n8n opcional)
+- Diário automático de trades
+
+---
+
+## Fase 4 – Semi-Automação
+
+- Ordem limite enviada automaticamente
+- Stop e target automáticos
+- Controle de risco ativo
+- Monitoramento de falhas
+
+---
+
+## Fase 5 – Automação Total
+
+- Execução completa
+- Controle de drawdown automático
+- Pausa após sequência de perdas
+- Relatórios automáticos
+- Filtro de regime adaptativo
+
+---
+
+# Princípios do Projeto
+
+1. Nunca automatizar estratégia sem edge comprovado.
+2. Nunca otimizar sistema negativo (evitar overfitting).
+3. Primeiro validar estatística, depois sofisticar.
+4. Complexidade só entra quando há base sólida.
+5. LLM será camada auxiliar, não motor principal.
+
+---
+
+# Próximos Passos Imediatos
+
+1. Implementar estratégia breakout.
+2. Rodar backtest com histórico maior.
+3. Avaliar métricas.
+4. Decidir se há edge real.
+
+---
+
+# Objetivo Final
+
+Construir sistema quantitativo consistente, com:
+
+- Expectancy positiva
+- Drawdown controlado
+- Gestão de risco disciplinada
+- Evolução para autonomia real
+
+Sem promessas irreais.  
+Sem alavancagem irresponsável.  
+Sem improviso.
