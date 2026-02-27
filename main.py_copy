@@ -1,0 +1,35 @@
+// origenal
+from data.data_loader import get_ohlcv
+from strategy.pullback_trend import generate_signal
+from risk.risk_manager import calculate_position
+from notifier.telegram import send_message
+from config import SYMBOL
+
+def run():
+    df_1h = get_ohlcv(SYMBOL, '1h')
+    df_15m = get_ohlcv(SYMBOL, '15m')
+
+    signal, data = generate_signal(df_1h, df_15m)
+
+    if signal:
+        entry = data['close']
+        atr_value = data['atr']
+        stop = entry - (atr_value * 1.8) if signal == "BUY" else entry + (atr_value * 1.8)
+        target = entry + (abs(entry - stop) * 2.5) if signal == "BUY" else entry - (abs(entry - stop) * 2.5)
+
+        position_size = calculate_position(entry, stop)
+
+        message = f"""
+SINAL {SYMBOL}
+
+Direção: {signal}
+Entrada: {entry}
+Stop: {stop}
+Alvo: {target}
+Tamanho posição: {round(position_size, 4)}
+"""
+
+        send_message(message)
+
+if __name__ == "__main__":
+    run()
