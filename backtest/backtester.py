@@ -37,6 +37,7 @@ class Backtester:
     def run(self):
 
         position = None
+        last_exit_index = -config.TRADE_COOLDOWN_CANDLES
 
         for i in range(100, len(self.df_15m)):
 
@@ -53,7 +54,8 @@ class Backtester:
             # ABERTURA
             # ======================
 
-            if position is None and signal:
+            cooldown_done = (i - last_exit_index) >= config.TRADE_COOLDOWN_CANDLES
+            if position is None and signal and cooldown_done:
 
                 entry = row_15m["close"]
                 atr_value = row_15m["atr"]
@@ -62,11 +64,11 @@ class Backtester:
                     continue
 
                 if signal == "BUY":
-                    stop = entry - atr_value * 1.8
-                    target = entry + abs(entry - stop) * 2.5
+                    stop = entry - atr_value * config.ATR_MULTIPLIER
+                    target = entry + abs(entry - stop) * config.RR_RATIO
                 else:
-                    stop = entry + atr_value * 1.8
-                    target = entry - abs(entry - stop) * 2.5
+                    stop = entry + atr_value * config.ATR_MULTIPLIER
+                    target = entry - abs(entry - stop) * config.RR_RATIO
 
                 size = calculate_position(
                     entry,
@@ -99,12 +101,14 @@ class Backtester:
                         self.capital += loss
                         self.trades.append(loss)
                         position = None
+                        last_exit_index = i
 
                     elif high >= position["target"]:
                         gain = (position["target"] - position["entry"]) * position["size"]
                         self.capital += gain
                         self.trades.append(gain)
                         position = None
+                        last_exit_index = i
 
                 elif position["type"] == "SELL":
 
@@ -113,12 +117,14 @@ class Backtester:
                         self.capital += loss
                         self.trades.append(loss)
                         position = None
+                        last_exit_index = i
 
                     elif low <= position["target"]:
                         gain = (position["entry"] - position["target"]) * position["size"]
                         self.capital += gain
                         self.trades.append(gain)
                         position = None
+                        last_exit_index = i
 
         return self.results()
 

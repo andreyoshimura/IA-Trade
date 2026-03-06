@@ -19,7 +19,7 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 SYMBOL = "BTC/USDT"
 CAPITAL = 300
-RISK_PER_TRADE = 0.005
+RISK_PER_TRADE = 0.003
 
 
 # ===============================
@@ -38,8 +38,11 @@ BREAKOUT_LOOKBACK = 20
 EMA_PERIOD = 200
 ATR_PERIOD = 14
 ATR_MULTIPLIER = 1.5
-RR_RATIO = 2.0
+RR_RATIO = 1.7
 VOLUME_LOOKBACK = 20
+MIN_ADX = 16
+MIN_VOLUME_FACTOR = 1.2
+TRADE_COOLDOWN_CANDLES = 8
 
 # Buffer adicional para confirmar rompimento (multiplicador de ATR)
 BREAKOUT_BUFFER = 0.5

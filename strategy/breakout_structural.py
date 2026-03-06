@@ -79,12 +79,22 @@ def prepare_indicators(df_1h, df_15m):
 
     df_15m["atr"] = df_15m["tr"].rolling(config.ATR_PERIOD).mean()
 
-    # Breakout estrutural
-    df_15m["rolling_high"] = df_15m["high"].rolling(20).max()
-    df_15m["rolling_low"] = df_15m["low"].rolling(20).min()
+    # Breakout estrutural com janela anterior (exclui candle atual)
+    df_15m["rolling_high"] = (
+        df_15m["high"]
+        .rolling(config.BREAKOUT_LOOKBACK)
+        .max()
+        .shift(1)
+    )
+    df_15m["rolling_low"] = (
+        df_15m["low"]
+        .rolling(config.BREAKOUT_LOOKBACK)
+        .min()
+        .shift(1)
+    )
 
-    # Volume médio
-    df_15m["vol_mean"] = df_15m["volume"].rolling(config.ATR_PERIOD).mean()
+    # Volume médio na janela configurada
+    df_15m["vol_mean"] = df_15m["volume"].rolling(config.VOLUME_LOOKBACK).mean()
 
     return df_1h, df_15m
 
@@ -94,24 +104,31 @@ def prepare_indicators(df_1h, df_15m):
 # ==============================
 
 def check_signal(row_1h, row_15m):
+    if (
+        pd.isna(row_1h["adx"]) or
+        pd.isna(row_15m["rolling_high"]) or
+        pd.isna(row_15m["vol_mean"]) or
+        pd.isna(row_15m["atr"])
+    ):
+        return None
 
     # Filtro de regime: tendência forte
-    if row_1h["adx"] < 14:
+    if row_1h["adx"] < config.MIN_ADX:
         return None
 
     # Tendência de alta
     if (
         row_1h["ema_slope"] > 0 and
-        row_15m["close"] > row_15m["rolling_high"] and
-        row_15m["volume"] > row_15m["vol_mean"]
+        row_15m["close"] > (row_15m["rolling_high"] + row_15m["atr"] * config.BREAKOUT_BUFFER) and
+        row_15m["volume"] > (row_15m["vol_mean"] * config.MIN_VOLUME_FACTOR)
     ):
         return "BUY"
 
     # Tendência de baixa
     if (
         row_1h["ema_slope"] < 0 and
-        row_15m["close"] < row_15m["rolling_low"] and
-        row_15m["volume"] > row_15m["vol_mean"]
+        row_15m["close"] < (row_15m["rolling_low"] - row_15m["atr"] * config.BREAKOUT_BUFFER) and
+        row_15m["volume"] > (row_15m["vol_mean"] * config.MIN_VOLUME_FACTOR)
     ):
         return "SELL"
 
