@@ -1,15 +1,37 @@
+"""
+backtester.py
+
+Motor principal de backtest.
+
+Responsabilidades:
+- Iterar candles
+- Executar sinais da estratégia
+- Aplicar gestão de risco
+- Atualizar capital
+- Calcular métricas finais
+- Expor lista de trades para validação estatística
+"""
+
 import numpy as np
-from strategy.pullback_trend import prepare_indicators, check_signal
+import config
+from strategy.breakout_structural import prepare_indicators, check_signal
 from risk.risk_manager import calculate_position
-from config import CAPITAL
 
 
 class Backtester:
 
     def __init__(self, df_1h, df_15m):
+
+        # Preparar indicadores
         self.df_1h, self.df_15m = prepare_indicators(df_1h, df_15m)
-        self.initial_capital = CAPITAL
-        self.capital = CAPITAL
+
+        # Capital inicial
+        self.initial_capital = config.CAPITAL
+
+        # Capital dinâmico
+        self.capital = config.CAPITAL
+
+        # Lista de resultados individuais
         self.trades = []
 
     def run(self):
@@ -27,18 +49,31 @@ class Backtester:
 
             signal = check_signal(row_1h, row_15m)
 
+            # ======================
+            # ABERTURA
+            # ======================
+
             if position is None and signal:
 
-                entry = row_15m['close']
-                atr_value = row_15m['atr']
+                entry = row_15m["close"]
+                atr_value = row_15m["atr"]
 
                 if np.isnan(atr_value):
                     continue
 
-                stop = entry - atr_value * 1.8 if signal == "BUY" else entry + atr_value * 1.8
-                target = entry + abs(entry - stop) * 2.5 if signal == "BUY" else entry - abs(entry - stop) * 2.5
+                if signal == "BUY":
+                    stop = entry - atr_value * 1.8
+                    target = entry + abs(entry - stop) * 2.5
+                else:
+                    stop = entry + atr_value * 1.8
+                    target = entry - abs(entry - stop) * 2.5
 
-                size = calculate_position(entry, stop)
+                size = calculate_position(
+                    entry,
+                    stop,
+                    self.capital,
+                    config.RISK_PER_TRADE
+                )
 
                 position = {
                     "type": signal,
@@ -48,10 +83,14 @@ class Backtester:
                     "size": size
                 }
 
+            # ======================
+            # GERENCIAMENTO
+            # ======================
+
             elif position:
 
-                high = row_15m['high']
-                low = row_15m['low']
+                high = row_15m["high"]
+                low = row_15m["low"]
 
                 if position["type"] == "BUY":
 
@@ -82,6 +121,10 @@ class Backtester:
                         position = None
 
         return self.results()
+
+    # ======================
+    # MÉTRICAS
+    # ======================
 
     def results(self):
 
@@ -115,3 +158,14 @@ class Backtester:
             "profit_factor": round(profit_factor, 3),
             "max_drawdown_pct": round(max_drawdown * 100, 2)
         }
+
+    # ======================
+    # EXPOSIÇÃO DOS TRADES
+    # ======================
+
+    def get_trades(self):
+        """
+        Retorna lista de resultados individuais.
+        Necessário para Monte Carlo.
+        """
+        return self.trades
