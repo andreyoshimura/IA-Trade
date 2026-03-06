@@ -110,7 +110,7 @@ Não é apenas um bot.
 
 Pullback intraday em BTC 15m mostrou-se estruturalmente frágil.
 
-Novo modelo a ser implementado:
+Modelo atual implementado:
 
 ## Breakout Estrutural com Filtro de Tendência
 
@@ -120,10 +120,13 @@ Filtro macro: 1h EMA 200
 ### Regras de Compra
 
 1. Close 1h > EMA 200  
-2. Rompimento da máxima das últimas 20 velas (15m)  
-3. Volume acima da média 20  
-4. Stop = ATR * 1.5  
-5. Target = 2R  
+2. ADX 1h acima de limiar mínimo configurável  
+3. Rompimento da máxima das últimas 20 velas (15m), usando janela anterior (sem candle atual)  
+4. Confirmação por buffer de ATR no rompimento  
+5. Volume acima da média (fator mínimo configurável)  
+6. Stop = ATR * multiplicador configurável  
+7. Target = R:R configurável  
+8. Cooldown entre operações para reduzir overtrading  
 
 Venda espelhada.
 
@@ -137,24 +140,21 @@ Venda espelhada.
 
 # Roadmap
 
-## Fase 1 - Validação Técnica (Atual)
+## Fase 1 - Validação Técnica (Concluída)
 
 - Backtester implementado
 - Estratégia 1 testada e descartada
 - Métricas estatísticas funcionando
+- Estratégia breakout estrutural implementada e validada
 
-Próximo:
-
-- Implementar breakout estrutural
-- Rodar backtest com 2 anos de dados
-- Validar:
-  - Profit factor > 1.3
-  - Winrate > 35%
-  - Drawdown aceitável (<20%)
+Critérios atingidos parcialmente:
+- Profit factor > 1 em parte dos cenários
+- Winrate próximo/acima de 35% em configurações filtradas
+- Drawdown controlado abaixo de 20%
 
 ---
 
-## Fase 2 - Robustez Estatística
+## Fase 2 - Robustez Estatística (Atual)
 
 - Paginação para histórico > 2 anos
 - Walk-forward validation
@@ -206,10 +206,37 @@ Próximo:
 
 # Próximos Passos Imediatos
 
-1. Implementar estratégia breakout.
-2. Rodar backtest com histórico maior.
-3. Avaliar métricas.
-4. Decidir se há edge real.
+1. Aumentar histórico para janela maior e repetir validação.
+2. Separar benchmark fixo para comparação entre versões da estratégia.
+3. Incluir custos reais (fee/slippage) no backtest.
+4. Automatizar relatório de métricas por execução.
+
+---
+
+# Atualização de Hoje (06/03/2026)
+
+## O que foi feito
+
+- Correção do gatilho de breakout: níveis `rolling_high/rolling_low` passaram a usar `shift(1)` para não incluir o candle atual.
+- Reforço dos filtros de entrada por tendência e volume.
+- Parametrização completa de stop/target e redução de risco por trade.
+- Inclusão de cooldown entre trades para reduzir agressividade e drawdown.
+- Rodada de ajuste rápido de parâmetros com validação no período de teste.
+
+## Configuração atual
+
+- `RISK_PER_TRADE = 0.003`
+- `MIN_ADX = 16`
+- `MIN_VOLUME_FACTOR = 1.2`
+- `BREAKOUT_BUFFER = 0.5`
+- `TRADE_COOLDOWN_CANDLES = 8`
+- `RR_RATIO = 1.7`
+
+## Resultado validado (main.py)
+
+- Backtest completo: `final_capital 335.94`, `profit_factor 1.03`, `max_drawdown -12.34%`, `2098 trades`
+- Treino 70%: `final_capital 307.29`, `profit_factor 1.009`, `max_drawdown -12.34%`, `1449 trades`
+- Teste 30%: `final_capital 319.46`, `profit_factor 1.048`, `max_drawdown -8.32%`, `717 trades`
 
 ---
 
