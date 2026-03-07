@@ -35,15 +35,15 @@ TIMEFRAME = "15m"
 # ===============================
 
 # Janela do breakout maior para reduzir ruído
-BREAKOUT_LOOKBACK = 50
+BREAKOUT_LOOKBACK = 60
 EMA_PERIOD = 200
 ATR_PERIOD = 14
 ATR_MULTIPLIER = 1.5
-RR_RATIO = 2.8
+RR_RATIO = 2.5
 VOLUME_LOOKBACK = 20
-MIN_ADX = 24
-MIN_VOLUME_FACTOR = 1.6
-TRADE_COOLDOWN_CANDLES = 28
+MIN_ADX = 30
+MIN_VOLUME_FACTOR = 1.8
+TRADE_COOLDOWN_CANDLES = 36
 
 # Buffer adicional para confirmar rompimento (multiplicador de ATR)
 BREAKOUT_BUFFER = 1.4
