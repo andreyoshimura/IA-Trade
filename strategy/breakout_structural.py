@@ -78,6 +78,7 @@ def prepare_indicators(df_1h, df_15m):
     )
 
     df_15m["atr"] = df_15m["tr"].rolling(config.ATR_PERIOD).mean()
+    df_15m["atr_regime_mean"] = df_15m["atr"].rolling(config.ATR_EXPANSION_LOOKBACK).mean()
 
     # Breakout estrutural com janela anterior (exclui candle atual)
     df_15m["rolling_high"] = (
@@ -115,6 +116,15 @@ def check_signal(row_1h, row_15m):
     # Filtro de regime: tendência forte
     if row_1h["adx"] < config.MIN_ADX:
         return None
+
+    # Filtro de expansão de volatilidade:
+    # evita operar em janelas de baixa energia onde breakout tende a falhar.
+    if getattr(config, "ATR_EXPANSION_FILTER", False):
+        if pd.isna(row_15m["atr_regime_mean"]):
+            return None
+        min_atr = row_15m["atr_regime_mean"] * config.ATR_EXPANSION_FACTOR
+        if row_15m["atr"] < min_atr:
+            return None
 
     # Tendência de alta
     if (

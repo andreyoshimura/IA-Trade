@@ -228,6 +228,17 @@ Script para otimização de parâmetros (treino/teste out-of-sample):
 
 ---
 
+# Walk-Forward Multi-Janelas
+
+Validação temporal mais rígida para robustez out-of-sample:
+
+- Execução padrão:
+  - `./venv/bin/python analysis/walk_forward.py --train-days 365 --test-days 90 --step-days 90`
+- Execução rápida (poucos folds):
+  - `./venv/bin/python analysis/walk_forward.py --train-days 365 --test-days 90 --step-days 90 --max-folds 3`
+
+---
+
 # Atualização de Hoje (07/03/2026)
 
 ## O que foi feito
@@ -239,6 +250,7 @@ Script para otimização de parâmetros (treino/teste out-of-sample):
   - fallback sequencial em ambiente restrito;
   - otimização bayesiana com Optuna.
 - Seleção de nova configuração com foco em robustez out-of-sample.
+- Ativação real do filtro de regime por expansão de volatilidade (ATR).
 
 ## Configuração atual
 
@@ -254,9 +266,18 @@ Script para otimização de parâmetros (treino/teste out-of-sample):
 
 ## Resultado validado (main.py)
 
-- Backtest completo: `final_capital 324.60`, `profit_factor 1.115`, `max_drawdown -7.99%`, `293 trades`
-- Treino 70%: `final_capital 317.24`, `profit_factor 1.112`, `max_drawdown -6.83%`, `212 trades`
-- Teste 30%: `final_capital 302.33`, `profit_factor 1.035`, `max_drawdown -3.72%`, `94 trades`
+- Backtest completo: `final_capital 343.57`, `profit_factor 1.342`, `max_drawdown -7.45%`, `186 trades`
+- Treino 70%: `final_capital 321.19`, `profit_factor 1.210`, `max_drawdown -6.12%`, `142 trades`
+- Teste 30%: `final_capital 318.62`, `profit_factor 1.569`, `max_drawdown -1.83%`, `54 trades`
+
+## Resultado validado (walk-forward 365/90/90)
+
+- Folds: `16`
+- `test_pf_mean 1.436` | `test_pf_median 1.346`
+- Folds com `test_pf > 1`: `9/16`
+- `test_final_mean 300.99` | `test_final_median 302.17`
+- Folds com `final_capital > 300`: `9/16`
+- `test_dd_mean -1.55%` | pior fold `-3.72%`
 
 ---
 
