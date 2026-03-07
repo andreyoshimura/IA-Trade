@@ -34,18 +34,19 @@ TIMEFRAME = "15m"
 # PARAMETROS ESTRATEGIA BREAKOUT
 # ===============================
 
-BREAKOUT_LOOKBACK = 20
+# Janela do breakout maior para reduzir ruído
+BREAKOUT_LOOKBACK = 50
 EMA_PERIOD = 200
 ATR_PERIOD = 14
 ATR_MULTIPLIER = 1.5
-RR_RATIO = 1.7
+RR_RATIO = 2.8
 VOLUME_LOOKBACK = 20
-MIN_ADX = 16
-MIN_VOLUME_FACTOR = 1.2
-TRADE_COOLDOWN_CANDLES = 8
+MIN_ADX = 24
+MIN_VOLUME_FACTOR = 1.6
+TRADE_COOLDOWN_CANDLES = 28
 
 # Buffer adicional para confirmar rompimento (multiplicador de ATR)
-BREAKOUT_BUFFER = 0.5
+BREAKOUT_BUFFER = 1.4
 
 # ===============================
 # FUTURO (PREPARACAO)
@@ -68,3 +69,14 @@ ENABLE_NOTIFICATIONS = False
 ATR_EXPANSION_FILTER = True
 ATR_EXPANSION_LOOKBACK = 50
 ATR_EXPANSION_FACTOR = 1.2
+
+# ===============================
+# CUSTOS OPERACIONAIS BACKTEST
+# ===============================
+
+# Taxa por lado (entrada ou saída). Ex.: 0.0004 = 0.04%
+FEE_RATE = 0.0004
+
+# Slippage por lado aplicado de forma adversa na execução.
+# Ex.: 0.0002 = 0.02%
+SLIPPAGE_RATE = 0.0002

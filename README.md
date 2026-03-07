@@ -213,6 +213,21 @@ Critérios atingidos parcialmente:
 
 ---
 
+# Sweep de Parâmetros
+
+Script para otimização de parâmetros (treino/teste out-of-sample):
+
+- Grid paralelo (rápido):
+  - `./venv/bin/python analysis/parameter_sweep.py --engine grid --profile quick --workers 4 --top 5`
+- Grid paralelo (amplo):
+  - `./venv/bin/python analysis/parameter_sweep.py --engine grid --profile balanced --workers 8 --top 10 --csv analysis/sweep_results.csv`
+- Limitar número de combinações para teste rápido:
+  - `./venv/bin/python analysis/parameter_sweep.py --engine grid --profile quick --max-candidates 3 --workers 3 --top 3`
+- Otimização Bayesiana (Optuna):
+  - `./venv/bin/python analysis/parameter_sweep.py --engine optuna --trials 40 --workers 2 --top 10 --csv analysis/optuna_results.csv`
+
+---
+
 # Atualização de Hoje (06/03/2026)
 
 ## O que foi feito

@@ -60,7 +60,34 @@ def run_backtest(df_1h, df_15m, label):
     for k, v in results.items():
         print(f"{k}: {v}")
 
+    benchmark = calculate_buy_hold_benchmark(df_15m, config.CAPITAL)
+    print(f"benchmark_buy_hold_final_capital: {benchmark['final_capital']}")
+    print(f"benchmark_buy_hold_return_pct: {benchmark['return_pct']}")
+
+    if "final_capital" in results:
+        delta = round(results["final_capital"] - benchmark["final_capital"], 2)
+        print(f"strategy_vs_benchmark_delta: {delta}")
+
     return bt
+
+
+def calculate_buy_hold_benchmark(df_15m, initial_capital):
+    if df_15m is None or df_15m.empty:
+        return {"final_capital": round(initial_capital, 2), "return_pct": 0.0}
+
+    first_close = float(df_15m.iloc[0]["close"])
+    last_close = float(df_15m.iloc[-1]["close"])
+
+    if first_close <= 0:
+        return {"final_capital": round(initial_capital, 2), "return_pct": 0.0}
+
+    final_capital = initial_capital * (last_close / first_close)
+    return_pct = ((final_capital / initial_capital) - 1) * 100
+
+    return {
+        "final_capital": round(final_capital, 2),
+        "return_pct": round(return_pct, 2),
+    }
 
 
 def run():
