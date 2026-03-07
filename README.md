@@ -228,30 +228,35 @@ Script para otimização de parâmetros (treino/teste out-of-sample):
 
 ---
 
-# Atualização de Hoje (06/03/2026)
+# Atualização de Hoje (07/03/2026)
 
 ## O que foi feito
 
-- Correção do gatilho de breakout: níveis `rolling_high/rolling_low` passaram a usar `shift(1)` para não incluir o candle atual.
-- Reforço dos filtros de entrada por tendência e volume.
-- Parametrização completa de stop/target e redução de risco por trade.
-- Inclusão de cooldown entre trades para reduzir agressividade e drawdown.
-- Rodada de ajuste rápido de parâmetros com validação no período de teste.
+- Inclusão de custos operacionais no backtest (`FEE_RATE` e `SLIPPAGE_RATE`).
+- Benchmark fixo de buy and hold para comparação entre versões.
+- Automação da busca de parâmetros (`analysis/parameter_sweep.py`) com:
+  - grid search paralelo;
+  - fallback sequencial em ambiente restrito;
+  - otimização bayesiana com Optuna.
+- Seleção de nova configuração com foco em robustez out-of-sample.
 
 ## Configuração atual
 
 - `RISK_PER_TRADE = 0.003`
-- `MIN_ADX = 16`
-- `MIN_VOLUME_FACTOR = 1.2`
-- `BREAKOUT_BUFFER = 0.5`
-- `TRADE_COOLDOWN_CANDLES = 8`
-- `RR_RATIO = 1.7`
+- `MIN_ADX = 30`
+- `MIN_VOLUME_FACTOR = 1.8`
+- `BREAKOUT_BUFFER = 1.4`
+- `TRADE_COOLDOWN_CANDLES = 36`
+- `BREAKOUT_LOOKBACK = 60`
+- `RR_RATIO = 2.5`
+- `FEE_RATE = 0.0004`
+- `SLIPPAGE_RATE = 0.0002`
 
 ## Resultado validado (main.py)
 
-- Backtest completo: `final_capital 335.94`, `profit_factor 1.03`, `max_drawdown -12.34%`, `2098 trades`
-- Treino 70%: `final_capital 307.29`, `profit_factor 1.009`, `max_drawdown -12.34%`, `1449 trades`
-- Teste 30%: `final_capital 319.46`, `profit_factor 1.048`, `max_drawdown -8.32%`, `717 trades`
+- Backtest completo: `final_capital 324.60`, `profit_factor 1.115`, `max_drawdown -7.99%`, `293 trades`
+- Treino 70%: `final_capital 317.24`, `profit_factor 1.112`, `max_drawdown -6.83%`, `212 trades`
+- Teste 30%: `final_capital 302.33`, `profit_factor 1.035`, `max_drawdown -3.72%`, `94 trades`
 
 ---
 
