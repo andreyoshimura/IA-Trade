@@ -154,7 +154,7 @@ Critérios atingidos parcialmente:
 
 ---
 
-## Fase 2 - Robustez Estatística (Atual)
+## Fase 2 - Robustez Estatística (Concluída)
 
 - Paginação para histórico > 2 anos
 - Walk-forward validation
@@ -164,7 +164,7 @@ Critérios atingidos parcialmente:
 
 ---
 
-## Fase 3 - Paper Trade
+## Fase 3 - Paper Trade (Atual)
 
 - Bot rodando em tempo real
 - Sinais enviados via Telegram
@@ -206,10 +206,10 @@ Critérios atingidos parcialmente:
 
 # Próximos Passos Imediatos
 
-1. Aumentar histórico para janela maior e repetir validação.
-2. Separar benchmark fixo para comparação entre versões da estratégia.
-3. Incluir custos reais (fee/slippage) no backtest.
-4. Automatizar relatório de métricas por execução.
+1. Rodar bot em tempo real (sem execução de ordens).
+2. Enviar sinais de entrada/saída via Telegram.
+3. Registrar sinais e resultados em log estruturado (CSV/JSON).
+4. Criar diário automático com métricas diárias e semanais.
 
 ---
 
