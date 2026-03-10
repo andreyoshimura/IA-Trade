@@ -60,7 +60,21 @@ ENABLE_ML_FILTER = False
 ENABLE_MARKET_HEAT = False
 
 ENABLE_LIVE_TRADING = False
-ENABLE_NOTIFICATIONS = False
+ENABLE_NOTIFICATIONS = True
+
+# ===============================
+# PAPER TRADE
+# ===============================
+
+PAPER_TRADE_CAPITAL = CAPITAL
+PAPER_POLL_INTERVAL_SECONDS = 30
+PAPER_OHLCV_LIMIT = 500
+PAPER_LOG_DIR = "logs"
+PAPER_STATE_FILE = "logs/paper_state.json"
+PAPER_SIGNAL_LOG = "logs/paper_signals.csv"
+PAPER_TRADE_LOG = "logs/paper_trades.csv"
+PAPER_EVENT_LOG = "logs/paper_events.jsonl"
+PAPER_REPORT_DIR = "logs/reports"
 
 # ===============================
 # FILTRO DE EXPANSAO DE VOLATILIDADE

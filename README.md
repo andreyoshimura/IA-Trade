@@ -213,6 +213,41 @@ Critérios atingidos parcialmente:
 
 ---
 
+# Paper Trade
+
+Runner para sinais em tempo real sem enviar ordens reais:
+
+- Teste local com CSV:
+  - `./venv/bin/python paper_trade.py --source csv --once --reset-state`
+- Execução contínua usando exchange:
+  - `./venv/bin/python paper_trade.py --source exchange`
+
+Arquivos gerados em `logs/`:
+
+- `paper_state.json`: estado atual do paper trade
+- `paper_signals.csv`: entradas e sinais ignorados
+- `paper_trades.csv`: saídas com PnL e capital após o trade
+- `paper_events.jsonl`: eventos e erros operacionais
+- `reports/`: relatórios diários e semanais do paper trade
+
+Observações:
+
+- Telegram só envia mensagens quando `ENABLE_NOTIFICATIONS = True`.
+- O runner nunca envia ordens; ele apenas simula posição, stop e target.
+- Diário automático:
+  - `./venv/bin/python analysis/paper_journal.py --period daily --stdout`
+  - `./venv/bin/python analysis/paper_journal.py --period weekly --stdout`
+  - `./venv/bin/python analysis/paper_journal.py --period daily --send-telegram`
+
+- Envio do relatório por Telegram exige:
+  - `ENABLE_NOTIFICATIONS = True`
+  - `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID` válidos no `.env`
+- Scripts de automação:
+  - `scripts/run_paper_trade.sh`
+  - `scripts/send_daily_report.sh`
+
+---
+
 # Sweep de Parâmetros
 
 Script para otimização de parâmetros (treino/teste out-of-sample):
