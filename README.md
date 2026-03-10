@@ -1,293 +1,49 @@
 # IA-Trade
 
-# 🔷 Objetivo Principal do Projeto
+Sistema quantitativo de trading com foco em robustez estatistica, configurabilidade e evolucao gradual ate automacao completa.
 
-Construir um sistema quantitativo de trading totalmente automatizado, adaptativo, configurável e estatisticamente validado, capaz de operar múltiplos ativos de forma consistente em diferentes regimes de mercado.
+## Estado Atual
 
-O sistema deve ser estruturado desde o início para:
+- Fase atual: `Fase 3 - Paper Trade`
+- Estrategia ativa: `Breakout estrutural BTC/USDT 15m com filtro de tendencia em 1h`
+- Status operacional:
+  - paper trade em tempo real via Binance
+  - alertas via Telegram
+  - logs estruturados de sinais, trades e eventos
+  - relatorio diario via Telegram
 
-- Evoluir sem reestruturações profundas.
-- Permitir ajustes rápidos de parâmetros.
-- Suportar futura adaptação automática via ML/IA.
-- Operar de forma disciplinada e controlada.
-- Sobreviver a ciclos completos de mercado (bull, bear e lateral).
+## Objetivo Principal
 
----
+Construir um sistema automatizado, adaptativo e validado estatisticamente, capaz de operar de forma disciplinada em diferentes regimes de mercado.
 
-# 🔷 Visão Estrutural de Longo Prazo
+Principios:
 
-O projeto será organizado em camadas independentes:
+1. Nunca automatizar estrategia sem edge comprovado.
+2. Nunca otimizar sistema negativo.
+3. Primeiro validar estatistica, depois sofisticar.
+4. Complexidade so entra quando ha base solida.
+5. Sobrevivencia vem antes de maximizacao de retorno.
 
-## 1. Camada de Pesquisa
-- Backtesting robusto
-- Validação estatística
-- Walk-forward
-- Estabilidade de parâmetros
-- Monte Carlo
+## Estrategia Atual
 
-## 2. Camada de Estratégias
-- Múltiplas estratégias modulares
-- Totalmente parametrizáveis
-- Independentes entre si
+Modelo implementado: `Breakout Estrutural com Filtro de Tendencia`
 
-## 3. Camada de Orquestração
-- Seleção de ativo
-- Seleção de estratégia
-- Ajuste de risco conforme regime
+- Timeframe principal: `15m`
+- Filtro macro: `1h`
+- Filtro de tendencia: `EMA 200`
+- Filtro de regime: `ADX`
+- Filtro de expansao: `ATR`
+- Confirmacao: buffer de breakout + volume
+- Gestao: stop por ATR, target por `RR_RATIO`, cooldown entre trades
 
-## 4. Camada de Inteligência (ML/IA)
-- Classificação de regime de mercado
-- Índice de “calor do mercado”
-- Ranqueamento de ativos
-- Ajuste dinâmico de exposição
-- Ajustes automáticos controlados de parâmetros
+Logica resumida:
 
-## 5. Camada de Execução
-- Execução automática
-- Controle de drawdown
-- Pausa após sequência de perdas
-- Logs e monitoramento
+1. Detecta tendencia e regime no `1h`.
+2. Busca rompimento estrutural no `15m`.
+3. Exige expansao de volatilidade e confirmacao de volume.
+4. Simula entrada, stop e target com custos operacionais.
 
----
-
-# 🔷 Configurabilidade como Fundamento
-
-O sistema deve ser totalmente configurável.
-
-Parâmetros ajustáveis:
-
-- Timeframes
-- Períodos de médias
-- ATR
-- R:R
-- Lista de ativos
-- Filtros de regime
-- Limites de risco
-- Ativação/desativação de módulos
-
-Nenhuma constante crítica deve permanecer hardcoded.
-
-Configuração deve ficar centralizada (`config.py` ou arquivo externo futuramente).
-
-A arquitetura deve permitir:
-
-- Ajustes manuais rápidos
-- Ajustes automáticos via ML (dentro de limites pré-definidos)
-- Evolução sem reescrever o motor principal
-
----
-
-# 🔷 Diferencial Estratégico
-
-O sistema não busca prever o próximo candle.
-
-Busca:
-
-- Operar apenas quando há probabilidade estatística favorável
-- Adaptar-se ao contexto do mercado
-- Diversificar risco entre ativos
-- Reduzir exposição em ambientes adversos
-- Manter consistência ao longo do tempo
-
-Não é apenas um bot.
-
-É um sistema adaptativo multi-ativo, multi-estratégia e orientado a regime.
-
----
-
-# Características
-
-- Backtester funcional
-- Curva de capital
-- Cálculo de drawdown
-- Métricas completas
-- Estrutura preparada para múltiplas estratégias
-- Base preparada para futura automação total
-
----
-
-# Decisão Estratégica Atual
-
-Pullback intraday em BTC 15m mostrou-se estruturalmente frágil.
-
-Modelo atual implementado:
-
-## Breakout Estrutural com Filtro de Tendência
-
-Timeframe principal: 15m  
-Filtro macro: 1h EMA 200  
-
-### Regras de Compra
-
-1. Close 1h > EMA 200  
-2. ADX 1h acima de limiar mínimo configurável  
-3. Rompimento da máxima das últimas 20 velas (15m), usando janela anterior (sem candle atual)  
-4. Confirmação por buffer de ATR no rompimento  
-5. Volume acima da média (fator mínimo configurável)  
-6. Stop = ATR * multiplicador configurável  
-7. Target = R:R configurável  
-8. Cooldown entre operações para reduzir overtrading  
-
-Venda espelhada.
-
-### Justificativa
-
-- BTC responde melhor a expansão do que a pullback curto.
-- Breakout tende a ter estatística mais favorável em cripto.
-- Relação risco-retorno mais saudável (2R).
-
----
-
-# Roadmap
-
-## Fase 1 - Validação Técnica (Concluída)
-
-- Backtester implementado
-- Estratégia 1 testada e descartada
-- Métricas estatísticas funcionando
-- Estratégia breakout estrutural implementada e validada
-
-Critérios atingidos parcialmente:
-- Profit factor > 1 em parte dos cenários
-- Winrate próximo/acima de 35% em configurações filtradas
-- Drawdown controlado abaixo de 20%
-
----
-
-## Fase 2 - Robustez Estatística (Concluída)
-
-- Paginação para histórico > 2 anos
-- Walk-forward validation
-- Análise de estabilidade de parâmetros
-- Curva de capital visual
-- Monte Carlo básico
-
----
-
-## Fase 3 - Paper Trade (Atual)
-
-- Bot rodando em tempo real
-- Sinais enviados via Telegram
-- Registro automático
-- Diário automático de trades
-
----
-
-## Fase 4 - Semi-Automação
-
-- Ordem limite enviada automaticamente
-- Stop e target automáticos
-- Controle de risco ativo
-- Monitoramento de falhas
-
----
-
-## Fase 5 - Automação Total
-
-- Execução completa
-- Controle de drawdown automático
-- Pausa após sequência de perdas
-- Relatórios automáticos
-- Filtro de regime adaptativo
-
----
-
-# Princípios do Projeto
-
-1. Nunca automatizar estratégia sem edge comprovado.
-2. Nunca otimizar sistema negativo (evitar overfitting).
-3. Primeiro validar estatística, depois sofisticar.
-4. Complexidade só entra quando há base sólida.
-5. ML será camada auxiliar, não motor principal.
-6. Sistema deve ser configurável e preparado para evolução automática futura.
-7. Sobrevivência vem antes de maximização de retorno.
-
----
-
-# Próximos Passos Imediatos
-
-1. Rodar bot em tempo real (sem execução de ordens).
-2. Enviar sinais de entrada/saída via Telegram.
-3. Registrar sinais e resultados em log estruturado (CSV/JSON).
-4. Criar diário automático com métricas diárias e semanais.
-
----
-
-# Paper Trade
-
-Runner para sinais em tempo real sem enviar ordens reais:
-
-- Teste local com CSV:
-  - `./venv/bin/python paper_trade.py --source csv --once --reset-state`
-- Execução contínua usando exchange:
-  - `./venv/bin/python paper_trade.py --source exchange`
-
-Arquivos gerados em `logs/`:
-
-- `paper_state.json`: estado atual do paper trade
-- `paper_signals.csv`: entradas e sinais ignorados
-- `paper_trades.csv`: saídas com PnL e capital após o trade
-- `paper_events.jsonl`: eventos e erros operacionais
-- `reports/`: relatórios diários e semanais do paper trade
-
-Observações:
-
-- Telegram só envia mensagens quando `ENABLE_NOTIFICATIONS = True`.
-- O runner nunca envia ordens; ele apenas simula posição, stop e target.
-- Diário automático:
-  - `./venv/bin/python analysis/paper_journal.py --period daily --stdout`
-  - `./venv/bin/python analysis/paper_journal.py --period weekly --stdout`
-  - `./venv/bin/python analysis/paper_journal.py --period daily --send-telegram`
-
-- Envio do relatório por Telegram exige:
-  - `ENABLE_NOTIFICATIONS = True`
-  - `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID` válidos no `.env`
-- Scripts de automação:
-  - `scripts/run_paper_trade.sh`
-  - `scripts/send_daily_report.sh`
-
----
-
-# Sweep de Parâmetros
-
-Script para otimização de parâmetros (treino/teste out-of-sample):
-
-- Grid paralelo (rápido):
-  - `./venv/bin/python analysis/parameter_sweep.py --engine grid --profile quick --workers 4 --top 5`
-- Grid paralelo (amplo):
-  - `./venv/bin/python analysis/parameter_sweep.py --engine grid --profile balanced --workers 8 --top 10 --csv analysis/sweep_results.csv`
-- Limitar número de combinações para teste rápido:
-  - `./venv/bin/python analysis/parameter_sweep.py --engine grid --profile quick --max-candidates 3 --workers 3 --top 3`
-- Otimização Bayesiana (Optuna):
-  - `./venv/bin/python analysis/parameter_sweep.py --engine optuna --trials 40 --workers 2 --top 10 --csv analysis/optuna_results.csv`
-
----
-
-# Walk-Forward Multi-Janelas
-
-Validação temporal mais rígida para robustez out-of-sample:
-
-- Execução padrão:
-  - `./venv/bin/python analysis/walk_forward.py --train-days 365 --test-days 90 --step-days 90`
-- Execução rápida (poucos folds):
-  - `./venv/bin/python analysis/walk_forward.py --train-days 365 --test-days 90 --step-days 90 --max-folds 3`
-
----
-
-# Atualização de Hoje (07/03/2026)
-
-## O que foi feito
-
-- Inclusão de custos operacionais no backtest (`FEE_RATE` e `SLIPPAGE_RATE`).
-- Benchmark fixo de buy and hold para comparação entre versões.
-- Automação da busca de parâmetros (`analysis/parameter_sweep.py`) com:
-  - grid search paralelo;
-  - fallback sequencial em ambiente restrito;
-  - otimização bayesiana com Optuna.
-- Seleção de nova configuração com foco em robustez out-of-sample.
-- Ativação real do filtro de regime por expansão de volatilidade (ATR).
-
-## Configuração atual
+## Configuracao Atual
 
 - `RISK_PER_TRADE = 0.003`
 - `MIN_ADX = 30`
@@ -299,37 +55,201 @@ Validação temporal mais rígida para robustez out-of-sample:
 - `FEE_RATE = 0.0004`
 - `SLIPPAGE_RATE = 0.0002`
 
-## Resultado validado (main.py)
+## Roadmap
+
+### Fase 1 - Validacao Tecnica
+
+- Backtester implementado
+- Estrategia inicial descartada
+- Metricas estatisticas funcionando
+- Estrategia breakout validada
+
+### Fase 2 - Robustez Estatistica
+
+- Historico com mais de 2 anos
+- Walk-forward
+- Analise de estabilidade de parametros
+- Monte Carlo basico
+
+### Fase 3 - Paper Trade
+
+- Bot em tempo real
+- Alertas via Telegram
+- Registro estruturado
+- Diario automatico
+
+### Fase 4 - Semi-Automacao
+
+- Envio automatico de ordens limite
+- Stop e target automaticos
+- Controle de risco ativo
+- Monitoramento de falhas
+
+### Fase 5 - Automacao Total
+
+- Execucao completa
+- Controle automatico de drawdown
+- Pausa apos sequencia de perdas
+- Relatorios automaticos
+- Filtro de regime adaptativo
+
+## Resultado Validado
+
+### Backtest Principal
 
 - Backtest completo: `final_capital 343.57`, `profit_factor 1.342`, `max_drawdown -7.45%`, `186 trades`
 - Treino 70%: `final_capital 321.19`, `profit_factor 1.210`, `max_drawdown -6.12%`, `142 trades`
 - Teste 30%: `final_capital 318.62`, `profit_factor 1.569`, `max_drawdown -1.83%`, `54 trades`
 
-## Resultado validado (walk-forward 365/90/90)
+### Walk-Forward 365/90/90
 
 - Folds: `16`
-- `test_pf_mean 1.436` | `test_pf_median 1.346`
+- `test_pf_mean 1.436`
+- `test_pf_median 1.346`
 - Folds com `test_pf > 1`: `9/16`
-- `test_final_mean 300.99` | `test_final_median 302.17`
+- `test_final_mean 300.99`
+- `test_final_median 302.17`
 - Folds com `final_capital > 300`: `9/16`
-- `test_dd_mean -1.55%` | pior fold `-3.72%`
+- `test_dd_mean -1.55%`
+- Pior fold: `-3.72%`
 
----
+Leitura pratica:
 
-# Objetivo Final
+- ha edge estatistico moderado
+- drawdown esta controlado
+- a estrategia ainda nao supera buy and hold em retorno absoluto no agregado
+- a fase atual serve para validar execucao ao vivo e qualidade dos sinais
 
-Construir sistema quantitativo consistente com:
+## Operacao Atual
 
-- Expectancy positiva
-- Drawdown controlado
-- Gestão de risco disciplinada
-- Adaptação a regime de mercado
-- Evolução para autonomia real
+### Paper Trade
 
-Sem promessas irreais.  
-Sem alavancagem irresponsável.  
+Teste local com CSV:
+
+```bash
+./venv/bin/python paper_trade.py --source csv --once --reset-state
+```
+
+Execucao continua usando exchange:
+
+```bash
+./venv/bin/python paper_trade.py --source exchange
+```
+
+Arquivos gerados em `logs/`:
+
+- `paper_state.json`: estado persistido do runner
+- `paper_signals.csv`: entradas e sinais ignorados
+- `paper_trades.csv`: trades fechados com PnL
+- `paper_events.jsonl`: eventos operacionais
+- `reports/`: relatorios diarios e semanais
+
+Observacoes:
+
+- o runner nunca envia ordens reais
+- entradas e saidas sao simuladas com custos
+- notificacoes dependem de `ENABLE_NOTIFICATIONS = True`
+
+### Relatorio Diario
+
+Gerar localmente:
+
+```bash
+./venv/bin/python analysis/paper_journal.py --period daily --stdout
+```
+
+Enviar para Telegram:
+
+```bash
+./venv/bin/python analysis/paper_journal.py --period daily --send-telegram
+```
+
+Relatorio semanal:
+
+```bash
+./venv/bin/python analysis/paper_journal.py --period weekly --stdout
+```
+
+## Automacao
+
+Scripts:
+
+- `scripts/run_paper_trade.sh`
+- `scripts/send_daily_report.sh`
+
+Cron configurado:
+
+- `@reboot /media/msx/SD200/VSCODE/github/IA-Trade/scripts/run_paper_trade.sh`
+- `55 23 * * * /media/msx/SD200/VSCODE/github/IA-Trade/scripts/send_daily_report.sh`
+
+## Requisitos de Ambiente
+
+No `.env`:
+
+- `API_KEY`
+- `API_SECRET`
+- `TELEGRAM_TOKEN`
+- `TELEGRAM_CHAT_ID`
+
+Ativacao:
+
+```bash
+source venv/bin/activate
+```
+
+## Analise e Pesquisa
+
+### Sweep de Parametros
+
+Grid rapido:
+
+```bash
+./venv/bin/python analysis/parameter_sweep.py --engine grid --profile quick --workers 4 --top 5
+```
+
+Grid amplo:
+
+```bash
+./venv/bin/python analysis/parameter_sweep.py --engine grid --profile balanced --workers 8 --top 10 --csv analysis/sweep_results.csv
+```
+
+Optuna:
+
+```bash
+./venv/bin/python analysis/parameter_sweep.py --engine optuna --trials 40 --workers 2 --top 10 --csv analysis/optuna_results.csv
+```
+
+### Walk-Forward
+
+Execucao padrao:
+
+```bash
+./venv/bin/python analysis/walk_forward.py --train-days 365 --test-days 90 --step-days 90
+```
+
+Execucao rapida:
+
+```bash
+./venv/bin/python analysis/walk_forward.py --train-days 365 --test-days 90 --step-days 90 --max-folds 3
+```
+
+## Proximos Passos
+
+1. Observar 24-72h de paper trade sem alterar a estrategia.
+2. Validar se sinais, horarios e trades ao vivo fazem sentido.
+3. Comparar frequencia e comportamento real com o backtest.
+4. Revisar qualidade por regime antes de avancar para semi-automacao.
+
+## Objetivo Final
+
+Construir um sistema quantitativo consistente com:
+
+- expectancy positiva
+- drawdown controlado
+- gestao de risco disciplinada
+- adaptacao a regime de mercado
+- evolucao para autonomia real
+
+Sem promessas irreais.
+Sem alavancagem irresponsavel.
 Sem improviso.
-
----
-
-`source venv/bin/activate` sempre que for usar.
