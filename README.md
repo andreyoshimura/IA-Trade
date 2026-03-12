@@ -232,7 +232,7 @@ Scripts:
 Cron configurado:
 
 - `@reboot /media/msx/SD200/VSCODE/github/IA-Trade/scripts/run_paper_trade.sh`
-- `55 23 * * * /media/msx/SD200/VSCODE/github/IA-Trade/scripts/send_daily_report.sh`
+- `0 22 * * * /media/msx/SD200/VSCODE/github/IA-Trade/scripts/send_daily_report.sh`
 
 ## Requisitos de Ambiente
 
