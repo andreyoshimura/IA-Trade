@@ -22,6 +22,7 @@ if ROOT_DIR not in sys.path:
 import config
 from backtest.backtester import Backtester
 from main import load_data, split_data
+from strategy.breakout_structural import prepare_indicators
 
 
 PARAM_KEYS = [
@@ -85,8 +86,28 @@ def snapshot_params() -> Dict[str, float]:
 def init_worker() -> None:
     df_1h, df_15m = load_data()
     df_1h_train, df_15m_train, df_1h_test, df_15m_test = split_data(df_1h, df_15m)
-    WORKER_DATA["train"] = (df_1h_train, df_15m_train)
-    WORKER_DATA["test"] = (df_1h_test, df_15m_test)
+    WORKER_DATA["train_raw"] = (df_1h_train.copy(), df_15m_train.copy())
+    WORKER_DATA["test_raw"] = (df_1h_test.copy(), df_15m_test.copy())
+    WORKER_DATA["prepared_cache"] = {}
+
+
+def get_prepared_split(split_name: str, breakout_lookback: int):
+    cache_key = (split_name, breakout_lookback)
+    prepared_cache = WORKER_DATA["prepared_cache"]
+
+    if cache_key in prepared_cache:
+        return prepared_cache[cache_key]
+
+    raw_1h, raw_15m = WORKER_DATA[f"{split_name}_raw"]
+    original_lookback = config.BREAKOUT_LOOKBACK
+    config.BREAKOUT_LOOKBACK = breakout_lookback
+    try:
+        prepared = prepare_indicators(raw_1h, raw_15m)
+    finally:
+        config.BREAKOUT_LOOKBACK = original_lookback
+
+    prepared_cache[cache_key] = prepared
+    return prepared
 
 
 def evaluate_params(params: Dict[str, float]) -> Dict[str, float]:
@@ -94,11 +115,12 @@ def evaluate_params(params: Dict[str, float]) -> Dict[str, float]:
 
     start = time.time()
 
-    df_1h_train, df_15m_train = WORKER_DATA["train"]
-    df_1h_test, df_15m_test = WORKER_DATA["test"]
+    breakout_lookback = int(params["BREAKOUT_LOOKBACK"])
+    df_1h_train, df_15m_train = get_prepared_split("train", breakout_lookback)
+    df_1h_test, df_15m_test = get_prepared_split("test", breakout_lookback)
 
-    train = Backtester(df_1h_train, df_15m_train).run()
-    test = Backtester(df_1h_test, df_15m_test).run()
+    train = Backtester(df_1h_train, df_15m_train, prepared_data=True).run()
+    test = Backtester(df_1h_test, df_15m_test, prepared_data=True).run()
 
     elapsed = round(time.time() - start, 2)
 

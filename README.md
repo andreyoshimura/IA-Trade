@@ -101,6 +101,20 @@ Logica resumida:
 - Treino 70%: `final_capital 321.19`, `profit_factor 1.210`, `max_drawdown -6.12%`, `142 trades`
 - Teste 30%: `final_capital 318.62`, `profit_factor 1.569`, `max_drawdown -1.83%`, `54 trades`
 
+### Monte Carlo Bootstrap (Teste 30%)
+
+- `mean_final_capital 318.18`
+- `worst_final_capital 270.55`
+- `best_final_capital 351.00`
+- `mean_max_drawdown_pct -2.45%`
+- `worst_drawdown_pct -10.39%`
+
+Leitura pratica:
+
+- agora o Monte Carlo usa bootstrap com reposicao sobre retornos por trade
+- a distribuicao terminal deixou de ser fixa e passou a refletir risco de sequencia
+- o teste continua mostrando edge moderado, mas com cauda de drawdown relevante
+
 ### Walk-Forward 365/90/90
 
 - Folds: `16`
@@ -113,12 +127,50 @@ Logica resumida:
 - `test_dd_mean -1.55%`
 - Pior fold: `-3.72%`
 
+### Sweep de Parametros
+
+Resultado rapido (`quick`, 12 combinacoes):
+
+- melhor combinacao: `MIN_ADX 28`, `MIN_VOLUME_FACTOR 1.6`, `BREAKOUT_BUFFER 1.4`, `TRADE_COOLDOWN_CANDLES 28`, `BREAKOUT_LOOKBACK 60`, `RR_RATIO 2.8`
+- `test_final 320.89`
+- `test_pf 1.562`
+- `test_dd -2.10%`
+- `58 trades`
+
+Resultado amplo (`balanced`, 96 combinacoes):
+
+- melhor combinacao: `MIN_ADX 28`, `MIN_VOLUME_FACTOR 1.6`, `BREAKOUT_BUFFER 1.4`, `TRADE_COOLDOWN_CANDLES 28`, `BREAKOUT_LOOKBACK 60`, `RR_RATIO 2.8`
+- `train_final 322.79`
+- `train_pf 1.193`
+- `test_final 320.89`
+- `test_pf 1.562`
+- `test_dd -2.10%`
+- `58 trades`
+- ranking completo salvo em `analysis/sweep_results.csv`
+
 Leitura pratica:
 
 - ha edge estatistico moderado
 - drawdown esta controlado
 - a estrategia ainda nao supera buy and hold em retorno absoluto no agregado
 - a fase atual serve para validar execucao ao vivo e qualidade dos sinais
+
+### Desempenho das Rotinas
+
+Tempos medidos localmente apos otimizacoes no motor:
+
+- `main.py`: `0m05.88s`
+- `analysis/walk_forward.py`: `0m09.94s`
+- `analysis/parameter_sweep.py --profile quick`: `0m26.68s` para `12` combinacoes
+- `analysis/parameter_sweep.py --profile balanced`: `3m26.99s` para `96` combinacoes
+- `paper_trade.py --source csv --once --reset-state`: `0m02.78s`
+- `analysis/paper_journal.py --period daily --stdout`: `0m00.85s`
+
+Impacto pratico:
+
+- o backtest principal caiu de cerca de `1m45s` para menos de `6s`
+- o walk-forward caiu de cerca de `3m24s` para menos de `10s`
+- o sweep caiu de cerca de `49s` por combinacao para aproximadamente `2s` por combinacao
 
 ## Operacao Atual
 
@@ -204,13 +256,13 @@ source venv/bin/activate
 Grid rapido:
 
 ```bash
-./venv/bin/python analysis/parameter_sweep.py --engine grid --profile quick --workers 4 --top 5
+./venv/bin/python analysis/parameter_sweep.py --engine grid --profile quick --workers 1 --top 5
 ```
 
 Grid amplo:
 
 ```bash
-./venv/bin/python analysis/parameter_sweep.py --engine grid --profile balanced --workers 8 --top 10 --csv analysis/sweep_results.csv
+./venv/bin/python analysis/parameter_sweep.py --engine grid --profile balanced --workers 1 --top 10 --csv analysis/sweep_results.csv
 ```
 
 Optuna:
@@ -232,6 +284,18 @@ Execucao rapida:
 ```bash
 ./venv/bin/python analysis/walk_forward.py --train-days 365 --test-days 90 --step-days 90 --max-folds 3
 ```
+
+### Validacao Local Recente
+
+Rotinas executadas com sucesso em `2026-03-12`:
+
+- `./venv/bin/python -m py_compile main.py analysis/monte_carlo.py analysis/parameter_sweep.py backtest/backtester.py`
+- `./venv/bin/python main.py`
+- `./venv/bin/python analysis/walk_forward.py`
+- `./venv/bin/python analysis/parameter_sweep.py --engine grid --profile quick --workers 1 --top 5`
+- `./venv/bin/python analysis/parameter_sweep.py --engine grid --profile balanced --workers 1 --top 10 --csv analysis/sweep_results.csv`
+- `./venv/bin/python paper_trade.py --source csv --once --reset-state`
+- `./venv/bin/python analysis/paper_journal.py --period daily --date 2026-03-11 --stdout`
 
 ## Proximos Passos
 

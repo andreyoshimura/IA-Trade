@@ -1,14 +1,15 @@
 import numpy as np
 
 
-def run_monte_carlo(trades, initial_capital=1000, simulations=1000):
+def run_monte_carlo(trade_returns, initial_capital=1000, simulations=1000):
     """
-    Executa simulação Monte Carlo embaralhando a ordem dos trades.
+    Executa simulação Monte Carlo embaralhando a ordem dos retornos por trade.
+    Os retornos devem ser relativos ao capital pré-trade para preservar
+    o efeito de compounding em estratégias com sizing dinâmico.
     Protegido contra lista vazia.
     """
 
-    # 🔴 Proteção contra lista vazia
-    if trades is None or len(trades) == 0:
+    if trade_returns is None or len(trade_returns) == 0:
         return {
             "mean_final_capital": initial_capital,
             "worst_final_capital": initial_capital,
@@ -17,16 +18,16 @@ def run_monte_carlo(trades, initial_capital=1000, simulations=1000):
             "worst_drawdown_pct": 0.0,
         }
 
-    trades = np.array(trades)
+    trade_returns = np.asarray(trade_returns, dtype=float)
 
     final_capitals = []
     max_drawdowns = []
 
+    rng = np.random.default_rng()
+
     for _ in range(simulations):
-
-        shuffled = np.random.permutation(trades)
-
-        equity = np.cumsum(shuffled) + initial_capital
+        sampled_returns = rng.choice(trade_returns, size=len(trade_returns), replace=True)
+        equity = initial_capital * np.cumprod(1 + sampled_returns)
 
         peak = np.maximum.accumulate(equity)
         drawdown = (equity - peak) / peak

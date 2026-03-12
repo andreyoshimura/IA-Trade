@@ -104,10 +104,10 @@ def run():
     bt_test = run_backtest(df_1h_test, df_15m_test, "TESTE (30%)")
 
     # 3️⃣ Monte Carlo no período de teste
-    trades_test = bt_test.get_trades()
+    trade_returns_test = bt_test.get_trade_returns()
 
     mc_results = run_monte_carlo(
-        trades_test,
+        trade_returns_test,
         initial_capital=config.CAPITAL,
         simulations=1000
     )

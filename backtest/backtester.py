@@ -14,16 +14,19 @@ Responsabilidades:
 
 import numpy as np
 import config
-from strategy.breakout_structural import prepare_indicators, check_signal
+from strategy.breakout_structural import prepare_indicators
 from risk.risk_manager import calculate_position
 
 
 class Backtester:
 
-    def __init__(self, df_1h, df_15m):
+    def __init__(self, df_1h, df_15m, prepared_data=False):
 
-        # Preparar indicadores
-        self.df_1h, self.df_15m = prepare_indicators(df_1h, df_15m)
+        # Permite reaproveitar features precomputadas em rotinas de sweep.
+        if prepared_data:
+            self.df_1h, self.df_15m = df_1h, df_15m
+        else:
+            self.df_1h, self.df_15m = prepare_indicators(df_1h, df_15m)
 
         # Capital inicial
         self.initial_capital = config.CAPITAL
@@ -33,22 +36,77 @@ class Backtester:
 
         # Lista de resultados individuais
         self.trades = []
+        self.trade_returns = []
 
     def run(self):
 
         position = None
         last_exit_index = -config.TRADE_COOLDOWN_CANDLES
+        df_15m = self.df_15m
+        df_1h = self.df_1h
 
-        for i in range(100, len(self.df_15m)):
+        close_15m = df_15m["close"].to_numpy()
+        high_15m = df_15m["high"].to_numpy()
+        low_15m = df_15m["low"].to_numpy()
+        volume_15m = df_15m["volume"].to_numpy()
+        atr_15m = df_15m["atr"].to_numpy()
+        rolling_high_15m = df_15m["rolling_high"].to_numpy()
+        rolling_low_15m = df_15m["rolling_low"].to_numpy()
+        vol_mean_15m = df_15m["vol_mean"].to_numpy()
+        atr_regime_mean_15m = df_15m["atr_regime_mean"].to_numpy()
+
+        adx_1h = df_1h["adx"].to_numpy()
+        ema_slope_1h = df_1h["ema_slope"].to_numpy()
+
+        for i in range(100, len(df_15m)):
 
             idx_1h = int(i / 4)
-            if idx_1h >= len(self.df_1h):
+            if idx_1h >= len(df_1h):
                 break
 
-            row_15m = self.df_15m.iloc[i]
-            row_1h = self.df_1h.iloc[idx_1h]
+            adx_value = adx_1h[idx_1h]
+            rolling_high = rolling_high_15m[i]
+            rolling_low = rolling_low_15m[i]
+            vol_mean = vol_mean_15m[i]
+            atr_value = atr_15m[i]
+            signal = None
 
-            signal = check_signal(row_1h, row_15m)
+            if not (
+                np.isnan(adx_value) or
+                np.isnan(rolling_high) or
+                np.isnan(rolling_low) or
+                np.isnan(vol_mean) or
+                np.isnan(atr_value)
+            ):
+                if adx_value >= config.MIN_ADX:
+                    if getattr(config, "ATR_EXPANSION_FILTER", False):
+                        atr_regime_mean = atr_regime_mean_15m[i]
+                        if not np.isnan(atr_regime_mean):
+                            min_atr = atr_regime_mean * config.ATR_EXPANSION_FACTOR
+                            atr_expansion_ok = atr_value >= min_atr
+                        else:
+                            atr_expansion_ok = False
+                    else:
+                        atr_expansion_ok = True
+
+                    if atr_expansion_ok:
+                        close_value = close_15m[i]
+                        volume_value = volume_15m[i]
+                        ema_slope_value = ema_slope_1h[idx_1h]
+                        min_volume = vol_mean * config.MIN_VOLUME_FACTOR
+
+                        if (
+                            ema_slope_value > 0 and
+                            close_value > (rolling_high + atr_value * config.BREAKOUT_BUFFER) and
+                            volume_value > min_volume
+                        ):
+                            signal = "BUY"
+                        elif (
+                            ema_slope_value < 0 and
+                            close_value < (rolling_low - atr_value * config.BREAKOUT_BUFFER) and
+                            volume_value > min_volume
+                        ):
+                            signal = "SELL"
 
             # ======================
             # ABERTURA
@@ -57,11 +115,7 @@ class Backtester:
             cooldown_done = (i - last_exit_index) >= config.TRADE_COOLDOWN_CANDLES
             if position is None and signal and cooldown_done:
 
-                entry = row_15m["close"]
-                atr_value = row_15m["atr"]
-
-                if np.isnan(atr_value):
-                    continue
+                entry = close_15m[i]
 
                 if signal == "BUY":
                     stop = entry - atr_value * config.ATR_MULTIPLIER
@@ -91,12 +145,13 @@ class Backtester:
 
             elif position:
 
-                high = row_15m["high"]
-                low = row_15m["low"]
+                high = high_15m[i]
+                low = low_15m[i]
 
                 if position["type"] == "BUY":
 
                     if low <= position["stop"]:
+                        capital_before_trade = self.capital
                         trade_result = self._calculate_trade_result(
                             position_type="BUY",
                             entry_price=position["entry"],
@@ -105,10 +160,12 @@ class Backtester:
                         )
                         self.capital += trade_result
                         self.trades.append(trade_result)
+                        self.trade_returns.append(trade_result / capital_before_trade if capital_before_trade > 0 else 0.0)
                         position = None
                         last_exit_index = i
 
                     elif high >= position["target"]:
+                        capital_before_trade = self.capital
                         trade_result = self._calculate_trade_result(
                             position_type="BUY",
                             entry_price=position["entry"],
@@ -117,12 +174,14 @@ class Backtester:
                         )
                         self.capital += trade_result
                         self.trades.append(trade_result)
+                        self.trade_returns.append(trade_result / capital_before_trade if capital_before_trade > 0 else 0.0)
                         position = None
                         last_exit_index = i
 
                 elif position["type"] == "SELL":
 
                     if high >= position["stop"]:
+                        capital_before_trade = self.capital
                         trade_result = self._calculate_trade_result(
                             position_type="SELL",
                             entry_price=position["entry"],
@@ -131,10 +190,12 @@ class Backtester:
                         )
                         self.capital += trade_result
                         self.trades.append(trade_result)
+                        self.trade_returns.append(trade_result / capital_before_trade if capital_before_trade > 0 else 0.0)
                         position = None
                         last_exit_index = i
 
                     elif low <= position["target"]:
+                        capital_before_trade = self.capital
                         trade_result = self._calculate_trade_result(
                             position_type="SELL",
                             entry_price=position["entry"],
@@ -143,6 +204,7 @@ class Backtester:
                         )
                         self.capital += trade_result
                         self.trades.append(trade_result)
+                        self.trade_returns.append(trade_result / capital_before_trade if capital_before_trade > 0 else 0.0)
                         position = None
                         last_exit_index = i
 
@@ -217,3 +279,10 @@ class Backtester:
         Necessário para Monte Carlo.
         """
         return self.trades
+
+    def get_trade_returns(self):
+        """
+        Retorna lista de retornos por trade sobre o capital pré-trade.
+        Necessário para Monte Carlo com sizing dinâmico.
+        """
+        return self.trade_returns
