@@ -93,6 +93,37 @@ Logica resumida:
 - Relatorios automaticos
 - Filtro de regime adaptativo
 
+### Fase 6 - Multi-Asset
+
+- Validar a estrategia em multiplos ativos
+- Reduzir dependencia exclusiva de BTC
+- Comparar desempenho entre pares
+- Identificar ativos com melhor aderencia ao modelo
+
+Ativos candidatos:
+
+- `BTCUSDT`
+- `ETHUSDT`
+- `SOLUSDT`
+- `BNBUSDT`
+
+### Fase 7 - Portfolio Allocation
+
+- Alocar capital dinamicamente entre ativos
+- Ajustar exposicao por volatilidade
+- Considerar drawdown na distribuicao de risco
+- Evoluir para selecao por retorno ajustado ao risco
+
+### Fase 8 - Arbitragem Estrutural (Exploratoria)
+
+- Estudar diferencas entre mercados e pares relacionados
+- Investigar arbitragem triangular
+- Mapear ineficiencias temporarias
+
+Observacao:
+
+- esta fase nao e prioridade enquanto o sistema direcional principal ainda esta sendo consolidado
+
 ## Resultado Validado
 
 ### Backtest Principal
@@ -317,3 +348,34 @@ Construir um sistema quantitativo consistente com:
 Sem promessas irreais.
 Sem alavancagem irresponsavel.
 Sem improviso.
+
+## Metadados da Estrategia
+
+- Versao da estrategia: `v3`
+- Ativo principal: `BTCUSDT`
+- Timeframe de execucao: `15m`
+- Filtro de tendencia: `1h`
+- Fonte de dados: OHLCV historico da Binance
+- Janela de dados testada como referencia: `2022-2025`
+
+## Benchmark e Interpretacao
+
+O benchmark usado no projeto e buy and hold do ativo no mesmo periodo do backtest.
+
+Leitura correta:
+
+- o benchmark contextualiza retorno absoluto
+- a estrategia busca retorno mais estavel e drawdown menor
+- o objetivo nao e necessariamente vencer buy and hold em bull markets extremos
+- o foco e disciplina, controle de risco e consistencia operacional
+
+## Reprodutibilidade
+
+Para reproduzir os resultados:
+
+1. Usar dados OHLCV do mesmo periodo.
+2. Manter os mesmos parametros da estrategia.
+3. Executar o backtest no mesmo timeframe.
+4. Comparar pelo menos `winrate`, `expectancy`, `profit_factor` e `max_drawdown`.
+
+Isso permite auditoria tecnica e comparacao consistente entre versoes.
