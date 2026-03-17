@@ -54,6 +54,9 @@ Logica resumida:
 - `RR_RATIO = 2.5`
 - `FEE_RATE = 0.0004`
 - `SLIPPAGE_RATE = 0.0002`
+- `ENABLE_VARIABLE_SLIPPAGE = True`
+- `SLIPPAGE_MIN_RATE = 0.0001`
+- `SLIPPAGE_MAX_RATE = 0.0015`
 
 ## Roadmap
 
@@ -128,23 +131,24 @@ Observacao:
 
 ### Backtest Principal
 
-- Backtest completo: `final_capital 343.57`, `profit_factor 1.342`, `max_drawdown -7.45%`, `186 trades`
-- Treino 70%: `final_capital 321.19`, `profit_factor 1.210`, `max_drawdown -6.12%`, `142 trades`
-- Teste 30%: `final_capital 318.62`, `profit_factor 1.569`, `max_drawdown -1.83%`, `54 trades`
+- Backtest completo: `final_capital 312.56`, `profit_factor 1.092`, `max_drawdown -10.32%`, `186 trades`
+- Treino 70%: `final_capital 299.75`, `profit_factor 0.998`, `max_drawdown -8.51%`, `142 trades`
+- Teste 30%: `final_capital 309.11`, `profit_factor 1.251`, `max_drawdown -2.06%`, `54 trades`
 
 ### Monte Carlo Bootstrap (Teste 30%)
 
-- `mean_final_capital 318.18`
-- `worst_final_capital 270.55`
-- `best_final_capital 351.00`
-- `mean_max_drawdown_pct -2.45%`
-- `worst_drawdown_pct -10.39%`
+- `mean_final_capital 309.17`
+- `worst_final_capital 278.84`
+- `best_final_capital 344.53`
+- `mean_max_drawdown_pct -3.11%`
+- `worst_drawdown_pct -8.31%`
 
 Leitura pratica:
 
 - agora o Monte Carlo usa bootstrap com reposicao sobre retornos por trade
 - a distribuicao terminal deixou de ser fixa e passou a refletir risco de sequencia
-- o teste continua mostrando edge moderado, mas com cauda de drawdown relevante
+- o modelo agora inclui slippage variavel por ATR, breakout e excesso de volume
+- o edge ficou mais estreito, mas a leitura ficou mais honesta para fase de paper trade
 
 ### Walk-Forward 365/90/90
 
@@ -222,8 +226,8 @@ Execucao continua usando exchange:
 Arquivos gerados em `logs/`:
 
 - `paper_state.json`: estado persistido do runner
-- `paper_signals.csv`: entradas e sinais ignorados
-- `paper_trades.csv`: trades fechados com PnL
+- `paper_signals.csv`: entradas e sinais ignorados, com `entry_slippage_rate`
+- `paper_trades.csv`: trades fechados com PnL, slippage efetivo e fees
 - `paper_events.jsonl`: eventos operacionais
 - `reports/`: relatorios diarios e semanais
 
@@ -379,3 +383,28 @@ Para reproduzir os resultados:
 4. Comparar pelo menos `winrate`, `expectancy`, `profit_factor` e `max_drawdown`.
 
 Isso permite auditoria tecnica e comparacao consistente entre versoes.
+
+## Slippage Variavel
+
+O projeto agora usa um modelo de slippage variavel para tornar o backtest e o paper trade menos otimistas.
+
+Componentes do modelo:
+
+- slippage base por lado
+- ajuste por `ATR / preco`
+- ajuste por distancia do breakout
+- ajuste por excesso de volume no candle
+- limites minimo e maximo para evitar valores irreais
+
+Objetivo atual:
+
+- aproximar melhor os custos de execucao em rompimentos
+- medir degradacao real do edge quando o mercado acelera
+- gerar logs suficientes para calibracao futura com dados observados
+
+Proximo passo de calibracao:
+
+1. Coletar uma amostra de trades do paper trade.
+2. Comparar sinal, candle de disparo e contexto de volatilidade.
+3. Revisar pesos de ATR, breakout e volume.
+4. Reexecutar `main.py`, `walk_forward.py` e `parameter_sweep.py` com os pesos ajustados.

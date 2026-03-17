@@ -91,6 +91,16 @@ ATR_EXPANSION_FACTOR = 1.2
 # Taxa por lado (entrada ou saída). Ex.: 0.0004 = 0.04%
 FEE_RATE = 0.0004
 
-# Slippage por lado aplicado de forma adversa na execução.
+# Slippage base por lado aplicado de forma adversa na execução.
 # Ex.: 0.0002 = 0.02%
 SLIPPAGE_RATE = 0.0002
+
+# Modelo de slippage variável.
+# Ajusta o slippage com base em volatilidade (ATR), distância do breakout
+# e excesso de volume no candle de execução.
+ENABLE_VARIABLE_SLIPPAGE = True
+SLIPPAGE_MIN_RATE = 0.0001
+SLIPPAGE_MAX_RATE = 0.0015
+SLIPPAGE_ATR_WEIGHT = 0.02
+SLIPPAGE_BREAKOUT_WEIGHT = 0.03
+SLIPPAGE_VOLUME_WEIGHT = 0.00005

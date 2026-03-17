@@ -16,6 +16,7 @@ import numpy as np
 import config
 from strategy.breakout_structural import prepare_indicators
 from risk.risk_manager import calculate_position
+from utils.execution_costs import build_slippage_context, calculate_trade_result
 
 
 class Backtester:
@@ -136,7 +137,13 @@ class Backtester:
                     "entry": entry,
                     "stop": stop,
                     "target": target,
-                    "size": size
+                    "size": size,
+                    "entry_context": build_slippage_context(
+                        price_reference=entry,
+                        atr_value=atr_value,
+                        volume_ratio=(volume_value / vol_mean) if vol_mean > 0 else None,
+                        breakout_distance=abs(entry - rolling_high) if signal == "BUY" else abs(entry - rolling_low),
+                    ),
                 }
 
             # ======================
@@ -157,6 +164,13 @@ class Backtester:
                             entry_price=position["entry"],
                             exit_price=position["stop"],
                             size=position["size"],
+                            entry_context=position.get("entry_context"),
+                            exit_context=build_slippage_context(
+                                price_reference=position["stop"],
+                                atr_value=atr_value,
+                                volume_ratio=(volume_value / vol_mean) if vol_mean > 0 else None,
+                                breakout_distance=abs(position["entry"] - position["stop"]),
+                            ),
                         )
                         self.capital += trade_result
                         self.trades.append(trade_result)
@@ -171,6 +185,13 @@ class Backtester:
                             entry_price=position["entry"],
                             exit_price=position["target"],
                             size=position["size"],
+                            entry_context=position.get("entry_context"),
+                            exit_context=build_slippage_context(
+                                price_reference=position["target"],
+                                atr_value=atr_value,
+                                volume_ratio=(volume_value / vol_mean) if vol_mean > 0 else None,
+                                breakout_distance=abs(position["target"] - position["entry"]),
+                            ),
                         )
                         self.capital += trade_result
                         self.trades.append(trade_result)
@@ -187,6 +208,13 @@ class Backtester:
                             entry_price=position["entry"],
                             exit_price=position["stop"],
                             size=position["size"],
+                            entry_context=position.get("entry_context"),
+                            exit_context=build_slippage_context(
+                                price_reference=position["stop"],
+                                atr_value=atr_value,
+                                volume_ratio=(volume_value / vol_mean) if vol_mean > 0 else None,
+                                breakout_distance=abs(position["stop"] - position["entry"]),
+                            ),
                         )
                         self.capital += trade_result
                         self.trades.append(trade_result)
@@ -201,6 +229,13 @@ class Backtester:
                             entry_price=position["entry"],
                             exit_price=position["target"],
                             size=position["size"],
+                            entry_context=position.get("entry_context"),
+                            exit_context=build_slippage_context(
+                                price_reference=position["target"],
+                                atr_value=atr_value,
+                                volume_ratio=(volume_value / vol_mean) if vol_mean > 0 else None,
+                                breakout_distance=abs(position["entry"] - position["target"]),
+                            ),
                         )
                         self.capital += trade_result
                         self.trades.append(trade_result)
@@ -210,27 +245,15 @@ class Backtester:
 
         return self.results()
 
-    def _calculate_trade_result(self, position_type, entry_price, exit_price, size):
-        if size <= 0:
-            return 0.0
-
-        fee_rate = getattr(config, "FEE_RATE", 0.0)
-        slippage_rate = getattr(config, "SLIPPAGE_RATE", 0.0)
-
-        if position_type == "BUY":
-            exec_entry = entry_price * (1 + slippage_rate)
-            exec_exit = exit_price * (1 - slippage_rate)
-            gross_result = (exec_exit - exec_entry) * size
-        else:
-            exec_entry = entry_price * (1 - slippage_rate)
-            exec_exit = exit_price * (1 + slippage_rate)
-            gross_result = (exec_entry - exec_exit) * size
-
-        entry_notional = abs(exec_entry * size)
-        exit_notional = abs(exec_exit * size)
-        fees = (entry_notional + exit_notional) * fee_rate
-
-        return gross_result - fees
+    def _calculate_trade_result(self, position_type, entry_price, exit_price, size, entry_context=None, exit_context=None):
+        return calculate_trade_result(
+            position_type=position_type,
+            entry_price=entry_price,
+            exit_price=exit_price,
+            size=size,
+            entry_context=entry_context,
+            exit_context=exit_context,
+        )
 
     # ======================
     # MÉTRICAS

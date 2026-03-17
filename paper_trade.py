@@ -27,6 +27,7 @@ from data.data_loader import get_ohlcv
 from notifier.telegram import send_message
 from risk.risk_manager import calculate_position
 from strategy.breakout_structural import check_signal, prepare_indicators
+from utils.execution_costs import build_slippage_context, calculate_execution_details
 
 
 def parse_args():
@@ -156,29 +157,6 @@ def load_market_data(source, csv_path, limit):
     )
     return prepare_indicators(df_1h, df_15m)
 
-
-def calculate_trade_result(position_type, entry_price, exit_price, size):
-    if size <= 0:
-        return 0.0
-
-    fee_rate = getattr(config, "FEE_RATE", 0.0)
-    slippage_rate = getattr(config, "SLIPPAGE_RATE", 0.0)
-
-    if position_type == "BUY":
-        exec_entry = entry_price * (1 + slippage_rate)
-        exec_exit = exit_price * (1 - slippage_rate)
-        gross_result = (exec_exit - exec_entry) * size
-    else:
-        exec_entry = entry_price * (1 - slippage_rate)
-        exec_exit = exit_price * (1 + slippage_rate)
-        gross_result = (exec_entry - exec_exit) * size
-
-    entry_notional = abs(exec_entry * size)
-    exit_notional = abs(exec_exit * size)
-    fees = (entry_notional + exit_notional) * fee_rate
-    return gross_result - fees
-
-
 def find_row_1h(df_1h, candle_timestamp):
     row_1h = df_1h.loc[df_1h["timestamp"] == candle_timestamp.floor("1h")]
     if row_1h.empty:
@@ -199,6 +177,9 @@ def candle_cooldown_done(runtime, candle_timestamp):
 def open_position(runtime, signal, row_15m):
     entry = float(row_15m["close"])
     atr_value = float(row_15m["atr"])
+    vol_mean = float(row_15m["vol_mean"]) if not np.isnan(row_15m["vol_mean"]) else None
+    rolling_high = float(row_15m["rolling_high"]) if not np.isnan(row_15m["rolling_high"]) else None
+    rolling_low = float(row_15m["rolling_low"]) if not np.isnan(row_15m["rolling_low"]) else None
     if np.isnan(atr_value):
         return None
 
@@ -221,6 +202,12 @@ def open_position(runtime, signal, row_15m):
         "size": round(size, 8),
         "entry_timestamp": row_15m["timestamp"].isoformat(),
         "capital_at_entry": round(runtime.capital, 8),
+        "entry_context": build_slippage_context(
+            price_reference=entry,
+            atr_value=atr_value,
+            volume_ratio=(float(row_15m["volume"]) / vol_mean) if vol_mean and vol_mean > 0 else None,
+            breakout_distance=abs(entry - rolling_high) if signal == "BUY" and rolling_high else abs(entry - rolling_low) if signal == "SELL" and rolling_low else None,
+        ),
     }
     runtime.position = position
 
@@ -234,11 +221,12 @@ def open_position(runtime, signal, row_15m):
         "stop": position["stop"],
         "target": position["target"],
         "size": position["size"],
+        "entry_slippage_rate": round(position["entry_context"].get("resolved_slippage_rate", 0.0), 8),
     }
     append_csv(
         config.PAPER_SIGNAL_LOG,
         signal_row,
-        ["timestamp", "action", "signal", "close", "atr", "capital", "stop", "target", "size"],
+        ["timestamp", "action", "signal", "close", "atr", "capital", "stop", "target", "size", "entry_slippage_rate"],
     )
     log_event("entry", **signal_row)
     notify(
@@ -257,12 +245,24 @@ def close_position(runtime, row_15m, exit_reason, exit_price):
     if not position:
         return
 
-    pnl = calculate_trade_result(
+    execution = calculate_execution_details(
         position_type=position["type"],
         entry_price=float(position["entry"]),
         exit_price=float(exit_price),
         size=float(position["size"]),
+        entry_context=position.get("entry_context"),
+        exit_context=build_slippage_context(
+            price_reference=float(exit_price),
+            atr_value=float(row_15m["atr"]) if not np.isnan(row_15m["atr"]) else None,
+            volume_ratio=(
+                float(row_15m["volume"]) / float(row_15m["vol_mean"])
+                if not np.isnan(row_15m["vol_mean"]) and float(row_15m["vol_mean"]) > 0
+                else None
+            ),
+            breakout_distance=abs(float(exit_price) - float(position["entry"])),
+        ),
     )
+    pnl = execution["pnl"]
     runtime.capital += pnl
     runtime.last_exit_timestamp = row_15m["timestamp"].isoformat()
 
@@ -278,6 +278,11 @@ def close_position(runtime, row_15m, exit_reason, exit_price):
         "exit_reason": exit_reason,
         "pnl": round(pnl, 8),
         "capital_after": round(runtime.capital, 8),
+        "entry_slippage_rate": round(execution["entry_slippage_rate"], 8),
+        "exit_slippage_rate": round(execution["exit_slippage_rate"], 8),
+        "entry_exec_price": round(execution["entry_exec_price"], 8),
+        "exit_exec_price": round(execution["exit_exec_price"], 8),
+        "fees": round(execution["fees"], 8),
     }
     append_csv(
         config.PAPER_TRADE_LOG,
@@ -294,6 +299,11 @@ def close_position(runtime, row_15m, exit_reason, exit_price):
             "exit_reason",
             "pnl",
             "capital_after",
+            "entry_slippage_rate",
+            "exit_slippage_rate",
+            "entry_exec_price",
+            "exit_exec_price",
+            "fees",
         ],
     )
     log_event("exit", **trade_row)
