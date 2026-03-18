@@ -27,6 +27,7 @@ from data.data_loader import get_ohlcv
 from notifier.telegram import send_message
 from risk.risk_manager import calculate_position
 from strategy.breakout_structural import check_signal, prepare_indicators
+from strategy.sentiment_filter import SentimentFilter
 from utils.execution_costs import build_slippage_context, calculate_execution_details
 from utils.market_mode import market_label, supports_signal
 
@@ -128,6 +129,42 @@ def log_event(event, **payload):
     append_jsonl(config.PAPER_EVENT_LOG, row)
 
 
+def signal_log_fieldnames():
+    return [
+        "timestamp",
+        "action",
+        "signal",
+        "close",
+        "atr",
+        "capital",
+        "stop",
+        "target",
+        "size",
+        "entry_slippage_rate",
+        "sentiment_score",
+    ]
+
+
+def build_sentiment_filter():
+    if not getattr(config, "ENABLE_SENTIMENT_FILTER", False):
+        return None
+    return SentimentFilter(
+        api_key=getattr(config, "SENTIMENT_API_KEY", None),
+        language=getattr(config, "SENTIMENT_NEWS_LANGUAGE", "en"),
+        lookback_days=int(getattr(config, "SENTIMENT_LOOKBACK_DAYS", 3)),
+        max_articles=int(getattr(config, "SENTIMENT_MAX_ARTICLES", 20)),
+    )
+
+
+def evaluate_sentiment_trade(sentiment_filter, signal):
+    if sentiment_filter is None:
+        return True, None
+
+    base_symbol = str(config.SYMBOL).split("/", 1)[0]
+    threshold = float(getattr(config, "SENTIMENT_THRESHOLD", 0.2))
+    return sentiment_filter.evaluate_trade(side=signal, symbol=base_symbol, threshold=threshold)
+
+
 def load_market_data(source, csv_path, limit):
     if source == "csv":
         df_15m = pd.read_csv(csv_path)
@@ -175,7 +212,7 @@ def candle_cooldown_done(runtime, candle_timestamp):
     return candle_distance >= config.TRADE_COOLDOWN_CANDLES
 
 
-def open_position(runtime, signal, row_15m):
+def open_position(runtime, signal, row_15m, sentiment_score=None):
     entry = float(row_15m["close"])
     atr_value = float(row_15m["atr"])
     vol_mean = float(row_15m["vol_mean"]) if not np.isnan(row_15m["vol_mean"]) else None
@@ -223,11 +260,12 @@ def open_position(runtime, signal, row_15m):
         "target": position["target"],
         "size": position["size"],
         "entry_slippage_rate": round(position["entry_context"].get("resolved_slippage_rate", 0.0), 8),
+        "sentiment_score": round(float(sentiment_score), 8) if sentiment_score is not None else "",
     }
     append_csv(
         config.PAPER_SIGNAL_LOG,
         signal_row,
-        ["timestamp", "action", "signal", "close", "atr", "capital", "stop", "target", "size", "entry_slippage_rate"],
+        signal_log_fieldnames(),
     )
     log_event("entry", **signal_row)
     notify(
@@ -339,7 +377,7 @@ def manage_position(runtime, row_15m):
             close_position(runtime, row_15m, "TARGET", float(position["target"]))
 
 
-def process_new_candles(runtime, df_1h, df_15m):
+def process_new_candles(runtime, df_1h, df_15m, sentiment_filter=None):
     processed = 0
 
     for _, row_15m in df_15m.iterrows():
@@ -356,7 +394,25 @@ def process_new_candles(runtime, df_1h, df_15m):
 
         signal = check_signal(row_1h, row_15m)
         if runtime.position is None and signal and supports_signal(signal) and candle_cooldown_done(runtime, candle_timestamp):
-            open_position(runtime, signal, row_15m)
+            sentiment_allowed, sentiment_score = evaluate_sentiment_trade(sentiment_filter, signal)
+            if sentiment_allowed:
+                open_position(runtime, signal, row_15m, sentiment_score=sentiment_score)
+            else:
+                signal_row = {
+                    "timestamp": candle_timestamp.isoformat(),
+                    "action": "SKIP_SENTIMENT_BLOCKED",
+                    "signal": signal,
+                    "close": round(float(row_15m["close"]), 8),
+                    "atr": round(float(row_15m["atr"]), 8) if not np.isnan(row_15m["atr"]) else None,
+                    "capital": round(runtime.capital, 8),
+                    "stop": "",
+                    "target": "",
+                    "size": "",
+                    "entry_slippage_rate": "",
+                    "sentiment_score": round(float(sentiment_score), 8) if sentiment_score is not None else "",
+                }
+                append_csv(config.PAPER_SIGNAL_LOG, signal_row, signal_log_fieldnames())
+                log_event("signal_blocked_by_sentiment", **signal_row)
         elif signal:
             signal_row = {
                 "timestamp": candle_timestamp.isoformat(),
@@ -369,13 +425,14 @@ def process_new_candles(runtime, df_1h, df_15m):
                 "target": "",
                 "size": "",
                 "entry_slippage_rate": "",
+                "sentiment_score": "",
             }
             if not supports_signal(signal):
                 signal_row["action"] = "SKIP_UNSUPPORTED_MARKET_MODE"
             append_csv(
                 config.PAPER_SIGNAL_LOG,
                 signal_row,
-                ["timestamp", "action", "signal", "close", "atr", "capital", "stop", "target", "size", "entry_slippage_rate"],
+                signal_log_fieldnames(),
             )
 
         runtime.last_processed_timestamp = candle_timestamp.isoformat()
@@ -386,7 +443,7 @@ def process_new_candles(runtime, df_1h, df_15m):
 
 def run_once(runtime, source, csv_path, limit):
     df_1h, df_15m = load_market_data(source, csv_path, limit)
-    processed = process_new_candles(runtime, df_1h, df_15m)
+    processed = process_new_candles(runtime, df_1h, df_15m, sentiment_filter=build_sentiment_filter())
     log_event(
         "cycle_complete",
         source=source,

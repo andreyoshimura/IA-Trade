@@ -5,7 +5,15 @@ class SafetyGuard:
     def __init__(self, config_module):
         self.config = config_module
 
-    def evaluate(self, runtime_capital, broker_orders, reconciliation, manual_confirmation_override=False):
+    def evaluate(
+        self,
+        runtime_capital,
+        broker_orders,
+        reconciliation,
+        manual_confirmation_override=False,
+        broker_error=None,
+        live_state=None,
+    ):
         reasons = []
 
         if not getattr(self.config, "ENABLE_LIVE_TRADING", False):
@@ -23,7 +31,18 @@ class SafetyGuard:
         if initial_capital > 0 and runtime_capital < initial_capital * min_capital_ratio:
             reasons.append("capital_below_min_ratio")
 
+        if broker_error:
+            reasons.append("broker_unavailable")
+
         if reconciliation and not reconciliation.in_sync:
             reasons.append("broker_state_desync")
+
+        if live_state:
+            if live_state.get("last_exit_submission_error"):
+                reasons.append("live_exit_submission_failed")
+
+            if live_state.get("entry_order_id") and live_state.get("entry_order_status") == "CLOSED":
+                if not live_state.get("exit_orders_submitted"):
+                    reasons.append("live_position_without_submitted_exits")
 
         return SafetyDecision(allowed=len(reasons) == 0, reasons=reasons)

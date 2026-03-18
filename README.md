@@ -16,6 +16,24 @@ Sistema quantitativo de trading com foco em robustez estatistica, configurabilid
   - readiness e reconciliacao operacionais
   - envio real de entrada minima ja testado
   - automacao de saida apos fill implementada
+  - primeiro ciclo live controlado homologado ate `entrada executada + OCO ativa`
+
+## Onde Estamos
+
+- Estamos na `Fase 4 inicial / pre-live operacional`
+- O fluxo `spot-first` ja foi validado em paper trade, readiness e testes locais
+- O filtro de sentimento via `NewsAPI` ja foi integrado ao `paper_trade`, esta ativo e registra `sentiment_score`
+- O primeiro ciclo live controlado ja validou `entrada real + fill + sync-live + protecoes OCO`
+- O projeto ainda nao esta em `live continuo`, porque a saida final natural desse ciclo ainda precisa ser observada e repetida
+
+## Proximas Etapas
+
+- acumular mais ciclos com `./scripts/run_sentiment_cycle.sh` para formar amostra suficiente de `sentiment_score`
+- recalibrar `SENTIMENT_THRESHOLD` somente quando houver pelo menos `20` sinais com score numerico
+- continuar a validacao do fluxo `spot` real ate fechar o ciclo completo com entrada, protecao, reconciliacao e saida sem intervencao corretiva
+- observar o encerramento do trade real atual por `stop` ou `target` e registrar o desfecho operacional
+- manter `semi_auto.py --check-broker` e o `dry-run` como gates operacionais antes de qualquer teste real adicional
+- so depois disso considerar o avancar de `pre-live operacional` para uma etapa mais proxima de `live continuo`
 
 ## Objetivo Principal
 
@@ -97,7 +115,7 @@ Logica resumida:
 - Controle de risco ativo
 - Monitoramento de falhas
 - Status: `em andamento`
-- Sentimento de mercado em sentiment_filter.py
+- Sentimento de mercado integrado de forma opcional no `paper_trade.py`
 
 Base tecnica ja criada no repositorio:
 
@@ -113,19 +131,23 @@ Marco atual da Fase 4:
 - reconciliacao com exchange funcionando
 - ordem real minima de entrada ja testada
 - entrada real ja executada e saida real ja testada
+- primeiro ciclo live controlado com `0.0001 BTC` validou `fill imediato + sync-live + submissao de OCO`
 - fluxo Spot ajustado para enviar saidas apenas apos fill da entrada
 - aprendizado operacional real incorporado: `0.00007 BTC` e pequeno demais para ciclo completo
 - protecao Spot agora valida o minimo nocional antes de tentar enviar OCO
+- filtro de sentimento integrado no pipeline de sinal, mas desligado por padrao
 
 ## Dinheiro Real
 
 Status atual:
 
 - ja houve teste real com dinheiro real em Spot
+- em `2026-03-18`, um ciclo real controlado de `0.0001 BTC` abriu posicao e deixou OCO ativa com sucesso
 - o projeto ainda nao esta em live continuo
-- o ciclo completo com entrada executada + protecao ativa + reconciliacao final ainda nao foi validado
+- o ciclo completo com entrada executada + protecao ativa + reconciliacao final ja foi validado ate a etapa de OCO ativa
+- a saida final natural desse ciclo ainda precisa ser observada para fechar a homologacao ponta a ponta
 - o projeto esta configurado em modo `spot-first`
-- `ENABLE_LIVE_TRADING = False` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
+- `ENABLE_LIVE_TRADING = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
 - `LIVE_REQUIRE_MANUAL_CONFIRMATION = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L69)
 
 Onde configurar:
@@ -169,6 +191,11 @@ Validacao atual:
 
 - `./venv/bin/python semi_auto.py --check-broker` respondeu com `broker_error=None`
 - reconciliacao spot atual: `in_sync=True`, sem posicao aberta e sem ordens abertas
+- teste automatizado minimo da Fase 4: `./venv/bin/python -m unittest tests/test_phase4_spot.py`
+- a validacao automatizada cobre quantidade segura de saida spot e transicoes de estado do `live_state` apos fill
+- a reconciliacao agora considera o contexto de `live_state` para distinguir ordem pendente, posicao preenchida e protecoes enviadas
+- o readiness bloqueia explicitamente cenarios com `broker_error`, falha anterior de envio de saida e posicao live sem exits submetidos
+- o dry-run automatizado cobre a sequencia `entry pendente -> fill -> envio de exits` com broker fake local
 
 ### Fase 5 - Automacao Total
 
@@ -328,6 +355,33 @@ Readiness check da Fase 4:
 ./venv/bin/python semi_auto.py --check-broker
 ```
 
+Dry-run operacional da Fase 4:
+
+```bash
+./venv/bin/python semi_auto.py --dry-run --side BUY --size 0.001 --entry-price 100000 --stop-price 99000 --target-price 102000
+```
+
+Comportamento do dry-run:
+
+- nao toca a exchange real
+- simula `entry` pendente e depois `fill`
+- imprime o `live_state` transitando ate o envio simulado de exits
+- imprime checks de readiness com resultado final `PASS` ou `FAIL`
+- aceita `--dry-run-filled-size` para simular fill parcial
+- aceita `--dry-run-failure` para simular falha no envio de exits
+- aceita `--dry-run-broker-error` para simular indisponibilidade de broker
+- aceita `--dry-run-json` para emitir um payload JSON consumivel por script/CI
+- com `--dry-run-json`, o processo retorna `0` em `PASS` e `1` em `FAIL`
+
+Filtro de sentimento:
+
+- o modulo fica em [strategy/sentiment_filter.py](/media/msx/SD200/VSCODE/github/IA-Trade/strategy/sentiment_filter.py)
+- a integracao atual acontece no [paper_trade.py](/media/msx/SD200/VSCODE/github/IA-Trade/paper_trade.py)
+- `ENABLE_SENTIMENT_FILTER = False` por padrao em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py)
+- a fonte externa atual e `NewsAPI`, via `SENTIMENT_API_KEY`
+- sem chave, erro de rede ou resposta invalida, o filtro volta para score neutro (`0.0`)
+- quando ativado, sinais bloqueados por sentimento passam a ser registrados como `SKIP_SENTIMENT_BLOCKED`
+
 Envio real de bracket order:
 
 ```bash
@@ -360,10 +414,13 @@ Aprendizado do teste real:
 - mas ficou pequena demais para completar a protecao/saida com folga por causa de taxa e filtros de notional da Binance
 - por isso o minimo operacional recomendado para os proximos testes passou a ser `0.00008 BTC`
 - se a quantidade liquida apos taxa e arredondamento cair abaixo do minimo nocional, o bot agora falha explicitamente em vez de insistir com a exchange
+- em `2026-03-18`, uma entrada real de `0.0001 BTC` foi executada a `73877.0` e a OCO foi submetida com `stop=73000` e `target=75000`
+- o `check-broker` depois do `sync-live` retornou `reconciliation=in_sync=True` com `2` ordens abertas de protecao
 
 Interpretacao:
 
 - ja foi provado que a conta consegue executar ordens reais
+- ja foi provado que o fluxo `entrada -> fill -> sync-live -> OCO` funciona em Spot na conta atual
 - se `safety_allowed=False`, nao e momento de operar continuamente com dinheiro real
 - se houver `broker_state_desync`, a operacao deve continuar bloqueada
 - live continuo so deve ser considerado quando os bloqueios de seguranca forem removidos de forma consciente
@@ -397,6 +454,32 @@ Enviar para Telegram:
 ./venv/bin/python analysis/paper_journal.py --period daily --send-telegram
 ```
 
+### Relatorio de Sentimento
+
+Gerar resumo dos scores registrados:
+
+```bash
+./venv/bin/python analysis/sentiment_report.py
+```
+
+Uso pratico:
+
+- mostra distribuicao dos `sentiment_score` registrados
+- separa entradas e bloqueios por sentimento
+- so sugere um piso inicial para calibracao de `SENTIMENT_THRESHOLD` quando houver amostra minima suficiente
+
+Rotina simples de coleta + revisao:
+
+```bash
+./scripts/run_sentiment_cycle.sh
+```
+
+Essa rotina:
+
+- executa `paper_trade.py --source exchange --once`
+- roda `analysis/sentiment_report.py --limit 50`
+- grava a saida em `logs/sentiment_cycle.log`
+
 Relatorio semanal:
 
 ```bash
@@ -409,6 +492,31 @@ Scripts:
 
 - `scripts/run_paper_trade.sh`
 - `scripts/send_daily_report.sh`
+- `scripts/run_sentiment_cycle.sh`
+- `scripts/run_e2e_validation.sh`
+
+Validacao end-to-end local:
+
+```bash
+./scripts/run_e2e_validation.sh
+```
+
+Essa bateria executa:
+
+- compilacao basica dos modulos principais
+- `main.py`
+- `walk_forward.py` em modo rapido
+- `parameter_sweep.py` em modo rapido
+- `paper_trade.py --source csv --once --reset-state`
+- `paper_journal.py --period daily --stdout`
+- `slippage_report.py`
+- `sentiment_report.py`
+- `semi_auto.py --dry-run --dry-run-json`
+- testes unitarios principais
+
+Saida consolidada:
+
+- `logs/e2e_validation.log`
 
 Cron configurado:
 

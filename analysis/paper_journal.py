@@ -71,7 +71,7 @@ def load_events():
         return pd.DataFrame()
 
     df = pd.DataFrame(rows)
-    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_localize(None)
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, format="mixed", errors="coerce").dt.tz_localize(None)
     return df
 
 
