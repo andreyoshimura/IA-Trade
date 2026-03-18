@@ -5,13 +5,13 @@ class SafetyGuard:
     def __init__(self, config_module):
         self.config = config_module
 
-    def evaluate(self, runtime_capital, broker_orders, reconciliation):
+    def evaluate(self, runtime_capital, broker_orders, reconciliation, manual_confirmation_override=False):
         reasons = []
 
         if not getattr(self.config, "ENABLE_LIVE_TRADING", False):
             reasons.append("live_trading_disabled")
 
-        if getattr(self.config, "LIVE_REQUIRE_MANUAL_CONFIRMATION", True):
+        if getattr(self.config, "LIVE_REQUIRE_MANUAL_CONFIRMATION", True) and not manual_confirmation_override:
             reasons.append("manual_confirmation_required")
 
         max_orders = int(getattr(self.config, "LIVE_MAX_OPEN_ORDERS", 3))

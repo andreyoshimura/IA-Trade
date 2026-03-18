@@ -91,9 +91,36 @@ Logica resumida:
 Base tecnica ja criada no repositorio:
 
 - `execution/broker.py`: interface de broker + adaptador inicial para `ccxt`
+- `execution/live_executor.py`: construcao de bracket orders para entrada, stop e target
 - `execution/position_sync.py`: reconciliacao entre estado local e exchange
 - `execution/safety_guard.py`: travas para evitar operacao insegura
 - `semi_auto.py`: comando de readiness da Fase 4 sem enviar ordens por padrao
+
+## Dinheiro Real
+
+Status atual:
+
+- o projeto ainda nao opera com dinheiro real
+- `ENABLE_LIVE_TRADING = False` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
+- `LIVE_REQUIRE_MANUAL_CONFIRMATION = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L69)
+
+Onde configurar:
+
+- chave principal de liberacao: [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
+- confirmacao manual obrigatoria: [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L69)
+- limites operacionais da Fase 4: [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L70)
+- tipos de ordem live e log operacional: [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L73)
+- readiness operacional: [semi_auto.py](/media/msx/SD200/VSCODE/github/IA-Trade/semi_auto.py)
+
+O projeto so deve passar para dinheiro real quando todos os pontos abaixo forem verdadeiros:
+
+1. `ENABLE_LIVE_TRADING = True`
+2. reconciliacao com exchange aprovada
+3. `semi_auto.py --check-broker` sem bloqueios criticos
+4. executor real de ordens com stop e target validado
+5. capital minimo de entrada definido
+
+Enquanto qualquer item acima faltar, o estado correto do projeto e `paper trade / pre-live`.
 
 ### Fase 5 - Automacao Total
 
@@ -236,6 +263,19 @@ Readiness check da Fase 4:
 ./venv/bin/python semi_auto.py
 ./venv/bin/python semi_auto.py --check-broker
 ```
+
+Envio real de bracket order:
+
+```bash
+./venv/bin/python semi_auto.py --check-broker --place-bracket --side BUY --size 0.001 --entry-price 100000 --stop-price 99000 --target-price 102000 --confirm-live
+```
+
+Interpretacao:
+
+- se `safety_allowed=False`, nao e momento de dinheiro real
+- se houver `broker_state_desync`, a operacao deve continuar bloqueada
+- live so deve ser considerado quando os bloqueios de seguranca forem removidos de forma consciente
+- toda tentativa de envio real fica registrada em `logs/live_orders.jsonl`
 
 Arquivos gerados em `logs/`:
 
