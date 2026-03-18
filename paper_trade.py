@@ -28,6 +28,7 @@ from notifier.telegram import send_message
 from risk.risk_manager import calculate_position
 from strategy.breakout_structural import check_signal, prepare_indicators
 from utils.execution_costs import build_slippage_context, calculate_execution_details
+from utils.market_mode import market_label, supports_signal
 
 
 def parse_args():
@@ -354,7 +355,7 @@ def process_new_candles(runtime, df_1h, df_15m):
         manage_position(runtime, row_15m)
 
         signal = check_signal(row_1h, row_15m)
-        if runtime.position is None and signal and candle_cooldown_done(runtime, candle_timestamp):
+        if runtime.position is None and signal and supports_signal(signal) and candle_cooldown_done(runtime, candle_timestamp):
             open_position(runtime, signal, row_15m)
         elif signal:
             signal_row = {
@@ -367,11 +368,14 @@ def process_new_candles(runtime, df_1h, df_15m):
                 "stop": "",
                 "target": "",
                 "size": "",
+                "entry_slippage_rate": "",
             }
+            if not supports_signal(signal):
+                signal_row["action"] = "SKIP_UNSUPPORTED_MARKET_MODE"
             append_csv(
                 config.PAPER_SIGNAL_LOG,
                 signal_row,
-                ["timestamp", "action", "signal", "close", "atr", "capital", "stop", "target", "size"],
+                ["timestamp", "action", "signal", "close", "atr", "capital", "stop", "target", "size", "entry_slippage_rate"],
             )
 
         runtime.last_processed_timestamp = candle_timestamp.isoformat()
@@ -409,7 +413,8 @@ def run():
 
     print(
         f"paper trade iniciado source={args.source} symbol={config.SYMBOL} "
-        f"timeframe={config.TIMEFRAME} poll={config.PAPER_POLL_INTERVAL_SECONDS}s"
+        f"timeframe={config.TIMEFRAME} poll={config.PAPER_POLL_INTERVAL_SECONDS}s "
+        f"market_mode={market_label()}"
     )
     while True:
         try:

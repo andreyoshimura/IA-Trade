@@ -4,8 +4,8 @@ Sistema quantitativo de trading com foco em robustez estatistica, configurabilid
 
 ## Estado Atual
 
-- Fase atual: `Fase 3 - Paper Trade`
-- Estrategia ativa: `Breakout estrutural BTC/USDT 15m com filtro de tendencia em 1h`
+- Fase atual: `Transicao Fase 3 -> Fase 4`
+- Estrategia ativa: `Breakout estrutural BTC/USDT 15m com filtro de tendencia em 1h em modo spot-first`
 - Status operacional:
   - paper trade em tempo real via Binance
   - alertas via Telegram
@@ -45,6 +45,8 @@ Logica resumida:
 
 ## Configuracao Atual
 
+- `EXCHANGE_MARKET_TYPE = "spot"`
+- `ENABLE_SHORTS = False`
 - `RISK_PER_TRADE = 0.003`
 - `MIN_ADX = 30`
 - `MIN_VOLUME_FACTOR = 1.8`
@@ -101,11 +103,13 @@ Base tecnica ja criada no repositorio:
 Status atual:
 
 - o projeto ainda nao opera com dinheiro real
+- o projeto esta configurado em modo `spot-first`
 - `ENABLE_LIVE_TRADING = False` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
 - `LIVE_REQUIRE_MANUAL_CONFIRMATION = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L69)
 
 Onde configurar:
 
+- tipo de mercado e shorts: [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py)
 - chave principal de liberacao: [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
 - confirmacao manual obrigatoria: [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L69)
 - limites operacionais da Fase 4: [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L70)
@@ -121,6 +125,27 @@ O projeto so deve passar para dinheiro real quando todos os pontos abaixo forem 
 5. capital minimo de entrada definido
 
 Enquanto qualquer item acima faltar, o estado correto do projeto e `paper trade / pre-live`.
+
+## Modo de Mercado
+
+O projeto foi ajustado para funcionar com as limitacoes atuais da conta Binance, mas sem perder a possibilidade de voltar a derivativos no futuro.
+
+Configuracao padrao:
+
+- `EXCHANGE_MARKET_TYPE = "spot"`
+- `ENABLE_SHORTS = False`
+
+Efeito pratico:
+
+- entradas `BUY` continuam permitidas
+- novas entradas `SELL` ficam bloqueadas em modo spot
+- sinais de venda passam a ser ignorados como abertura de short
+- broker, data loader e executor live continuam configuraveis para voltar a `future` depois
+
+Validacao atual:
+
+- `./venv/bin/python semi_auto.py --check-broker` respondeu com `broker_error=None`
+- reconciliacao spot atual: `in_sync=True`, sem posicao aberta e sem ordens abertas
 
 ### Fase 5 - Automacao Total
 
@@ -165,23 +190,24 @@ Observacao:
 
 ### Backtest Principal
 
-- Backtest completo: `final_capital 312.56`, `profit_factor 1.092`, `max_drawdown -10.32%`, `186 trades`
-- Treino 70%: `final_capital 299.75`, `profit_factor 0.998`, `max_drawdown -8.51%`, `142 trades`
-- Teste 30%: `final_capital 309.11`, `profit_factor 1.251`, `max_drawdown -2.06%`, `54 trades`
+- Backtest completo: `final_capital 313.59`, `profit_factor 1.171`, `max_drawdown -7.47%`, `110 trades`
+- Treino 70%: `final_capital 305.04`, `profit_factor 1.079`, `max_drawdown -7.06%`, `85 trades`
+- Teste 30%: `final_capital 305.01`, `profit_factor 1.245`, `max_drawdown -1.36%`, `30 trades`
 
 ### Monte Carlo Bootstrap (Teste 30%)
 
-- `mean_final_capital 309.17`
-- `worst_final_capital 278.84`
-- `best_final_capital 344.53`
-- `mean_max_drawdown_pct -3.11%`
-- `worst_drawdown_pct -8.31%`
+- `mean_final_capital 304.91`
+- `worst_final_capital 280.32`
+- `best_final_capital 334.42`
+- `mean_max_drawdown_pct -2.40%`
+- `worst_drawdown_pct -7.28%`
 
 Leitura pratica:
 
 - agora o Monte Carlo usa bootstrap com reposicao sobre retornos por trade
 - a distribuicao terminal deixou de ser fixa e passou a refletir risco de sequencia
 - o modelo agora inclui slippage variavel por ATR, breakout e excesso de volume
+- o projeto agora roda em `spot-first`, sem abertura de novos shorts
 - o edge ficou mais estreito, mas a leitura ficou mais honesta para fase de paper trade
 
 ### Walk-Forward 365/90/90

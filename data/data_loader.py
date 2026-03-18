@@ -1,12 +1,8 @@
 import ccxt
 import pandas as pd
-from config import API_KEY, API_SECRET
+from utils.exchange_factory import build_binance_exchange
 
-exchange = ccxt.binance({
-    'apiKey': API_KEY,
-    'secret': API_SECRET,
-    'options': {'defaultType': 'future'}
-})
+exchange = build_binance_exchange(ccxt)
 
 def get_ohlcv(symbol, timeframe, limit=200):
     ohlcv = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)

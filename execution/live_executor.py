@@ -4,6 +4,7 @@ from datetime import datetime
 import config
 
 from execution.models import OrderIntent
+from utils.market_mode import market_type, shorts_enabled
 
 
 def utcnow_compact():
@@ -12,8 +13,20 @@ def utcnow_compact():
 
 def build_bracket_order_intents(symbol, side, size, entry_price, stop_price, target_price):
     side = side.upper()
+    if market_type() == "spot" and side != "BUY":
+        raise ValueError("spot_mode_only_supports_buy_entries")
+    if side == "SELL" and not shorts_enabled():
+        raise ValueError("short_entries_disabled")
+
     exit_side = "SELL" if side == "BUY" else "BUY"
     client_prefix = f"{symbol.replace('/', '').lower()}-{utcnow_compact()}"
+    stop_order_type = getattr(config, "LIVE_STOP_ORDER_TYPE", "STOP_LOSS_LIMIT")
+    target_order_type = getattr(config, "LIVE_TARGET_ORDER_TYPE", "LIMIT")
+    stop_limit_offset_pct = float(getattr(config, "LIVE_STOP_LIMIT_OFFSET_PCT", 0.0))
+    stop_limit_price = None
+
+    if stop_order_type == "STOP_LOSS_LIMIT":
+        stop_limit_price = stop_price * (1 - stop_limit_offset_pct) if side == "BUY" else stop_price * (1 + stop_limit_offset_pct)
 
     return {
         "entry": OrderIntent(
@@ -28,20 +41,21 @@ def build_bracket_order_intents(symbol, side, size, entry_price, stop_price, tar
         "stop": OrderIntent(
             symbol=symbol,
             side=exit_side,
-            order_type=getattr(config, "LIVE_STOP_ORDER_TYPE", "STOP_MARKET"),
+            order_type=stop_order_type,
             amount=size,
+            price=stop_limit_price,
             stop_price=stop_price,
             client_order_id=f"{client_prefix}-stop",
-            reduce_only=True,
+            reduce_only=market_type() != "spot",
         ),
         "target": OrderIntent(
             symbol=symbol,
             side=exit_side,
-            order_type=getattr(config, "LIVE_TARGET_ORDER_TYPE", "TAKE_PROFIT_MARKET"),
+            order_type=target_order_type,
             amount=size,
-            stop_price=target_price,
+            price=target_price,
             client_order_id=f"{client_prefix}-target",
-            reduce_only=True,
+            reduce_only=market_type() != "spot",
         ),
     }
 

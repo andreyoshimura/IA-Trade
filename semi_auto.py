@@ -22,6 +22,7 @@ from execution.broker import CCXTBroker
 from execution.live_executor import build_bracket_order_intents, serialize_intents
 from execution.position_sync import reconcile_state
 from execution.safety_guard import SafetyGuard
+from utils.market_mode import market_label, market_type, shorts_enabled
 
 
 def parse_args():
@@ -90,6 +91,11 @@ def validate_bracket_args(args):
     if args.size <= 0:
         raise ValueError("size_must_be_positive")
 
+    if market_type() == "spot" and args.side != "BUY":
+        raise ValueError("spot_mode_only_supports_buy_entries")
+    if args.side == "SELL" and not shorts_enabled():
+        raise ValueError("short_entries_disabled")
+
     if args.side == "BUY":
         if not (args.stop_price < args.entry_price < args.target_price):
             raise ValueError("invalid_buy_bracket_prices")
@@ -152,6 +158,7 @@ def run():
 
     print("===== PHASE 4 READINESS =====")
     print(f"symbol={config.SYMBOL}")
+    print(f"market_mode={market_label()}")
     print(f"live_trading_enabled={config.ENABLE_LIVE_TRADING}")
     print(f"manual_confirmation_required={config.LIVE_REQUIRE_MANUAL_CONFIRMATION}")
     print(f"runtime_capital={round(capital, 8)}")

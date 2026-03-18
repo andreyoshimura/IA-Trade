@@ -17,6 +17,7 @@ import config
 from strategy.breakout_structural import prepare_indicators
 from risk.risk_manager import calculate_position
 from utils.execution_costs import build_slippage_context, calculate_trade_result
+from utils.market_mode import supports_signal
 
 
 class Backtester:
@@ -114,7 +115,7 @@ class Backtester:
             # ======================
 
             cooldown_done = (i - last_exit_index) >= config.TRADE_COOLDOWN_CANDLES
-            if position is None and signal and cooldown_done:
+            if position is None and signal and cooldown_done and supports_signal(signal):
 
                 entry = close_15m[i]
 

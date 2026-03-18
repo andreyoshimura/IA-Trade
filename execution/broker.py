@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 import config
 
 from execution.models import BrokerOrder, BrokerPosition, OrderIntent
+from utils.exchange_factory import build_binance_exchange
+from utils.market_mode import market_type, symbol_assets
 
 
 class BrokerInterface(ABC):
@@ -34,13 +36,7 @@ class CCXTBroker(BrokerInterface):
     def _build_exchange(self):
         import ccxt
 
-        return ccxt.binance(
-            {
-                "apiKey": config.API_KEY,
-                "secret": config.API_SECRET,
-                "options": {"defaultType": "future"},
-            }
-        )
+        return build_binance_exchange(ccxt)
 
     def fetch_balance(self) -> dict:
         return self.exchange.fetch_balance()
@@ -50,6 +46,9 @@ class CCXTBroker(BrokerInterface):
         return [self._map_order(order) for order in orders]
 
     def fetch_position(self, symbol: str) -> BrokerPosition | None:
+        if market_type() == "spot":
+            return self._fetch_spot_position(symbol)
+
         market_id = symbol.replace("/", "")
         try:
             positions = self.exchange.fetch_positions([symbol])
@@ -72,9 +71,30 @@ class CCXTBroker(BrokerInterface):
                 )
         return None
 
+    def _fetch_spot_position(self, symbol: str) -> BrokerPosition | None:
+        base_asset, _ = symbol_assets(symbol)
+        balance = self.fetch_balance()
+        asset_balance = balance.get(base_asset, {})
+
+        free_amount = self._to_float(asset_balance.get("free")) or 0.0
+        used_amount = self._to_float(asset_balance.get("used")) or 0.0
+        total_amount = free_amount + used_amount
+
+        if total_amount <= 0:
+            return None
+
+        return BrokerPosition(
+            symbol=symbol,
+            side="long",
+            size=total_amount,
+            entry_price=None,
+            unrealized_pnl=None,
+            raw=asset_balance,
+        )
+
     def place_order(self, intent: OrderIntent) -> BrokerOrder:
         params = dict(intent.metadata)
-        if intent.reduce_only:
+        if intent.reduce_only and market_type() != "spot":
             params["reduceOnly"] = True
         if intent.client_order_id:
             params["newClientOrderId"] = intent.client_order_id
