@@ -464,10 +464,10 @@ Rotinas executadas com sucesso em `2026-03-12`:
 
 ## Proximos Passos
 
-1. Observar 24-72h de paper trade sem alterar a estrategia.
-2. Validar se sinais, horarios e trades ao vivo fazem sentido.
-3. Comparar frequencia e comportamento real com o backtest.
-4. Revisar qualidade por regime antes de avancar para semi-automacao.
+1. Validar um ciclo Spot completo com entrada executada, protecao ativa e reconciliacao final sem divergencia.
+2. Confirmar o formato de saida protegida aceito pela Binance Spot para o tamanho operacional atual.
+3. Repetir o teste live com `0.00008 BTC` ou maior, mantendo confirmacao manual.
+4. So depois disso avaliar a liberacao controlada de operacao real continua.
 
 ## Objetivo Final
 
