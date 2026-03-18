@@ -32,6 +32,10 @@ class BrokerInterface(ABC):
     def cancel_order(self, order_id: str, symbol: str) -> dict:
         raise NotImplementedError
 
+    @abstractmethod
+    def place_spot_oco_exit(self, symbol: str, amount: float, take_profit_price: float, stop_price: float, stop_limit_price: float, client_order_id_prefix: str | None = None) -> dict:
+        raise NotImplementedError
+
 
 class CCXTBroker(BrokerInterface):
     def __init__(self, exchange=None):
@@ -121,6 +125,29 @@ class CCXTBroker(BrokerInterface):
 
     def cancel_order(self, order_id: str, symbol: str) -> dict:
         return self.exchange.cancel_order(order_id, symbol)
+
+    def place_spot_oco_exit(self, symbol: str, amount: float, take_profit_price: float, stop_price: float, stop_limit_price: float, client_order_id_prefix: str | None = None) -> dict:
+        market = self.exchange.market(symbol)
+        quantity = self.exchange.amount_to_precision(symbol, amount)
+        price = self.exchange.price_to_precision(symbol, take_profit_price)
+        stop_price_value = self.exchange.price_to_precision(symbol, stop_price)
+        stop_limit_price_value = self.exchange.price_to_precision(symbol, stop_limit_price)
+
+        params = {
+            "symbol": market["id"],
+            "side": "SELL",
+            "quantity": quantity,
+            "aboveType": "LIMIT_MAKER",
+            "abovePrice": price,
+            "belowType": "STOP_LOSS_LIMIT",
+            "belowStopPrice": stop_price_value,
+            "belowPrice": stop_limit_price_value,
+            "belowTimeInForce": "GTC",
+        }
+        if client_order_id_prefix:
+            params["listClientOrderId"] = f"{client_order_id_prefix}-oco"
+
+        return self.exchange.privatePostOrderListOco(params)
 
     def _map_order(self, order: dict) -> BrokerOrder:
         return BrokerOrder(

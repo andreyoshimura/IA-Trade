@@ -110,6 +110,10 @@ def validate_bracket_args(args):
         raise ValueError("spot_mode_only_supports_buy_entries")
     if args.side == "SELL" and not shorts_enabled():
         raise ValueError("short_entries_disabled")
+    if market_type() == "spot":
+        min_entry_amount = float(getattr(config, "SPOT_LIVE_MIN_ENTRY_AMOUNT", 0.0))
+        if min_entry_amount > 0 and args.size < min_entry_amount:
+            raise ValueError(f"spot_entry_below_safe_minimum<{min_entry_amount}")
 
     if args.side == "BUY":
         if not (args.stop_price < args.entry_price < args.target_price):
@@ -146,9 +150,23 @@ def place_spot_exit_orders(broker, live_state):
     if not stop_intent or not target_intent:
         raise ValueError("missing_pending_exit_intents")
 
-    stop_order = broker.place_order(build_order_intent_from_state(stop_intent))
-    target_order = broker.place_order(build_order_intent_from_state(target_intent))
-    return {"stop": stop_order, "target": target_order}
+    broker_position = broker.fetch_position(live_state["symbol"])
+    if broker_position is None or broker_position.size <= 0:
+        raise ValueError("missing_spot_position_for_exit")
+
+    executable_amount = broker.exchange.amount_to_precision(live_state["symbol"], broker_position.size)
+    executable_amount = float(executable_amount)
+    if executable_amount <= 0:
+        raise ValueError("executable_amount_below_minimum")
+
+    return broker.place_spot_oco_exit(
+        symbol=live_state["symbol"],
+        amount=executable_amount,
+        take_profit_price=float(target_intent["price"]),
+        stop_price=float(stop_intent["stop_price"]),
+        stop_limit_price=float(stop_intent["price"]),
+        client_order_id_prefix=str(stop_intent.get("client_order_id", "spot-exit")).rsplit("-", 1)[0],
+    )
 
 
 def build_order_intent_from_state(raw):
@@ -227,6 +245,10 @@ def run():
             return
 
         entry_order = broker.fetch_order(entry_order_id, config.SYMBOL)
+        live_state["entry_order_status"] = entry_order.status
+        live_state["entry_filled"] = entry_order.filled
+        live_state["updated_at"] = utcnow_iso()
+        save_live_state(live_state)
         print(
             f"live_entry_status=id={entry_order.order_id} status={entry_order.status} "
             f"filled={entry_order.filled} remaining={entry_order.remaining}"
@@ -248,7 +270,7 @@ def run():
             return
 
         try:
-            exit_orders = place_spot_exit_orders(broker, live_state)
+            oco_order = place_spot_exit_orders(broker, live_state)
         except Exception as exc:
             append_live_log(
                 "spot_exit_submission_failed",
@@ -258,13 +280,16 @@ def run():
                     "error": str(exc),
                 },
             )
+            live_state["last_exit_submission_error"] = str(exc)
+            live_state["updated_at"] = utcnow_iso()
+            save_live_state(live_state)
             print(f"live_sync_status=failed_to_submit_exits error={exc}")
             return
 
         live_state["entry_order_status"] = entry_order.status
         live_state["entry_filled"] = entry_order.filled
         live_state["exit_orders_submitted"] = True
-        live_state["exit_orders"] = {name: asdict(order) for name, order in exit_orders.items()}
+        live_state["exit_orders"] = {"oco": oco_order}
         save_live_state(live_state)
         append_live_log(
             "spot_exit_orders_submitted",
@@ -275,11 +300,7 @@ def run():
             },
         )
         print("live_sync_status=exit_orders_submitted")
-        for name, order in exit_orders.items():
-            print(
-                f"{name}_order="
-                f"id={order.order_id} type={order.order_type} side={order.side} status={order.status}"
-            )
+        print(f"oco_order={json.dumps(oco_order, ensure_ascii=True)}")
         return
 
     if not args.place_bracket:

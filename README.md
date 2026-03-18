@@ -52,6 +52,7 @@ Logica resumida:
 
 - `EXCHANGE_MARKET_TYPE = "spot"`
 - `ENABLE_SHORTS = False`
+- `SPOT_LIVE_MIN_ENTRY_AMOUNT = 0.00008`
 - `RISK_PER_TRADE = 0.003`
 - `MIN_ADX = 30`
 - `MIN_VOLUME_FACTOR = 1.8`
@@ -111,6 +112,7 @@ Marco atual da Fase 4:
 - reconciliacao com exchange funcionando
 - ordem real minima de entrada ja testada
 - fluxo Spot ajustado para enviar saidas apenas apos fill da entrada
+- aprendizado operacional real incorporado: `0.00007 BTC` e pequeno demais para ciclo completo
 
 ## Dinheiro Real
 
@@ -156,6 +158,7 @@ Efeito pratico:
 - sinais de venda passam a ser ignorados como abertura de short
 - broker, data loader e executor live continuam configuraveis para voltar a `future` depois
 - em live Spot, a entrada e enviada primeiro e as ordens de saida devem ser enviadas apenas depois do fill
+- em live Spot, o minimo operacional seguro atual passa a ser `0.00008 BTC`
 
 Validacao atual:
 
@@ -329,6 +332,12 @@ Comportamento:
 - se a entrada ainda estiver aberta, o comando apenas registra que o fill ainda nao ocorreu
 - se a entrada estiver executada, o comando envia `stop` e `target`
 - se as saidas ja tiverem sido enviadas, o comando nao duplica ordens
+
+Aprendizado do teste real:
+
+- uma entrada de `0.00007 BTC` conseguiu executar
+- mas ficou pequena demais para completar a protecao/saida com folga por causa de taxa e filtros de notional da Binance
+- por isso o minimo operacional recomendado para os proximos testes passou a ser `0.00008 BTC`
 
 Interpretacao:
 
