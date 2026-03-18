@@ -129,9 +129,17 @@ class CCXTBroker(BrokerInterface):
     def place_spot_oco_exit(self, symbol: str, amount: float, take_profit_price: float, stop_price: float, stop_limit_price: float, client_order_id_prefix: str | None = None) -> dict:
         market = self.exchange.market(symbol)
         quantity = self.exchange.amount_to_precision(symbol, amount)
+        quantity_float = float(quantity)
         price = self.exchange.price_to_precision(symbol, take_profit_price)
         stop_price_value = self.exchange.price_to_precision(symbol, stop_price)
         stop_limit_price_value = self.exchange.price_to_precision(symbol, stop_limit_price)
+        min_cost = float(market.get("limits", {}).get("cost", {}).get("min") or 0.0)
+        if quantity_float <= 0:
+            raise ValueError("spot_oco_quantity_rounded_to_zero")
+        if min_cost > 0 and (quantity_float * float(price)) < min_cost:
+            raise ValueError(
+                f"spot_oco_notional_below_minimum quantity={quantity_float} price={price} min_cost={min_cost}"
+            )
 
         params = {
             "symbol": market["id"],

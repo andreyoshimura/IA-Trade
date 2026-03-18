@@ -281,6 +281,7 @@ def run():
                 },
             )
             live_state["last_exit_submission_error"] = str(exc)
+            live_state["position_size_at_failed_exit"] = broker_position.size if broker_position else None
             live_state["updated_at"] = utcnow_iso()
             save_live_state(live_state)
             print(f"live_sync_status=failed_to_submit_exits error={exc}")

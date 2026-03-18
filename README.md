@@ -113,6 +113,7 @@ Marco atual da Fase 4:
 - ordem real minima de entrada ja testada
 - fluxo Spot ajustado para enviar saidas apenas apos fill da entrada
 - aprendizado operacional real incorporado: `0.00007 BTC` e pequeno demais para ciclo completo
+- protecao Spot agora valida o minimo nocional antes de tentar enviar OCO
 
 ## Dinheiro Real
 
@@ -338,6 +339,7 @@ Aprendizado do teste real:
 - uma entrada de `0.00007 BTC` conseguiu executar
 - mas ficou pequena demais para completar a protecao/saida com folga por causa de taxa e filtros de notional da Binance
 - por isso o minimo operacional recomendado para os proximos testes passou a ser `0.00008 BTC`
+- se a quantidade liquida apos taxa e arredondamento cair abaixo do minimo nocional, o bot agora falha explicitamente em vez de insistir com a exchange
 
 Interpretacao:
 
