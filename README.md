@@ -16,22 +16,22 @@ Sistema quantitativo de trading com foco em robustez estatistica, configurabilid
   - readiness e reconciliacao operacionais
   - envio real de entrada minima ja testado
   - automacao de saida apos fill implementada
-  - primeiro ciclo live controlado homologado ate `entrada executada + OCO ativa`
+  - primeiro ciclo live controlado homologado ponta a ponta em Spot
 
 ## Onde Estamos
 
 - Estamos na `Fase 4 inicial / pre-live operacional`
 - O fluxo `spot-first` ja foi validado em paper trade, readiness e testes locais
 - O filtro de sentimento via `NewsAPI` ja foi integrado ao `paper_trade`, esta ativo e registra `sentiment_score`
-- O primeiro ciclo live controlado ja validou `entrada real + fill + sync-live + protecoes OCO`
-- O projeto ainda nao esta em `live continuo`, porque a saida final natural desse ciclo ainda precisa ser observada e repetida
+- O primeiro ciclo live controlado ja validou `entrada real + fill + sync-live + protecoes OCO + saida final`
+- O projeto ainda nao esta em `live continuo`, porque esse ciclo ainda precisa ser repetido mais vezes antes de liberar operacao continua
 
 ## Proximas Etapas
 
 - acumular mais ciclos com `./scripts/run_sentiment_cycle.sh` para formar amostra suficiente de `sentiment_score`
 - recalibrar `SENTIMENT_THRESHOLD` somente quando houver pelo menos `20` sinais com score numerico
 - continuar a validacao do fluxo `spot` real ate fechar o ciclo completo com entrada, protecao, reconciliacao e saida sem intervencao corretiva
-- observar o encerramento do trade real atual por `stop` ou `target` e registrar o desfecho operacional
+- repetir novos ciclos reais pequenos para confirmar recorrencia operacional do fluxo completo
 - manter `semi_auto.py --check-broker` e o `dry-run` como gates operacionais antes de qualquer teste real adicional
 - so depois disso considerar o avancar de `pre-live operacional` para uma etapa mais proxima de `live continuo`
 
@@ -131,7 +131,7 @@ Marco atual da Fase 4:
 - reconciliacao com exchange funcionando
 - ordem real minima de entrada ja testada
 - entrada real ja executada e saida real ja testada
-- primeiro ciclo live controlado com `0.0001 BTC` validou `fill imediato + sync-live + submissao de OCO`
+- primeiro ciclo live controlado com `0.0001 BTC` validou `fill imediato + sync-live + submissao de OCO + fechamento`
 - fluxo Spot ajustado para enviar saidas apenas apos fill da entrada
 - aprendizado operacional real incorporado: `0.00007 BTC` e pequeno demais para ciclo completo
 - protecao Spot agora valida o minimo nocional antes de tentar enviar OCO
@@ -142,10 +142,10 @@ Marco atual da Fase 4:
 Status atual:
 
 - ja houve teste real com dinheiro real em Spot
-- em `2026-03-18`, um ciclo real controlado de `0.0001 BTC` abriu posicao e deixou OCO ativa com sucesso
+- em `2026-03-18`, um ciclo real controlado de `0.0001 BTC` abriu posicao, ativou OCO e encerrou via `stop`
 - o projeto ainda nao esta em live continuo
-- o ciclo completo com entrada executada + protecao ativa + reconciliacao final ja foi validado ate a etapa de OCO ativa
-- a saida final natural desse ciclo ainda precisa ser observada para fechar a homologacao ponta a ponta
+- o ciclo completo com entrada executada + protecao ativa + reconciliacao final ja foi validado ponta a ponta
+- o proximo passo e repetir esse ciclo em novos testes controlados antes de considerar live continuo
 - o projeto esta configurado em modo `spot-first`
 - `ENABLE_LIVE_TRADING = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
 - `LIVE_REQUIRE_MANUAL_CONFIRMATION = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L69)
@@ -416,11 +416,13 @@ Aprendizado do teste real:
 - se a quantidade liquida apos taxa e arredondamento cair abaixo do minimo nocional, o bot agora falha explicitamente em vez de insistir com a exchange
 - em `2026-03-18`, uma entrada real de `0.0001 BTC` foi executada a `73877.0` e a OCO foi submetida com `stop=73000` e `target=75000`
 - o `check-broker` depois do `sync-live` retornou `reconciliation=in_sync=True` com `2` ordens abertas de protecao
+- a perna de `stop` foi executada depois, com saida media em `73000.0`, e a perna de `target` expirou como esperado pela OCO
+- apos o fechamento, o `sync-live` passou a reconhecer o encerramento natural e o `check-broker` voltou para `reconciliation=in_sync=True` com `broker_size=0.0` e `broker_orders=0`
 
 Interpretacao:
 
 - ja foi provado que a conta consegue executar ordens reais
-- ja foi provado que o fluxo `entrada -> fill -> sync-live -> OCO` funciona em Spot na conta atual
+- ja foi provado que o fluxo `entrada -> fill -> sync-live -> OCO -> fechamento` funciona em Spot na conta atual
 - se `safety_allowed=False`, nao e momento de operar continuamente com dinheiro real
 - se houver `broker_state_desync`, a operacao deve continuar bloqueada
 - live continuo so deve ser considerado quando os bloqueios de seguranca forem removidos de forma consciente
