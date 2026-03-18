@@ -54,3 +54,11 @@ class ReconciliationResult:
 class SafetyDecision:
     allowed: bool
     reasons: list[str] = field(default_factory=list)
+
+
+@dataclass
+class SpotExecutionPlan:
+    entry: OrderIntent
+    stop: OrderIntent
+    target: OrderIntent
+    submit_exits_after_fill: bool = False

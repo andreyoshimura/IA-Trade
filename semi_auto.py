@@ -19,7 +19,7 @@ if ROOT_DIR not in sys.path:
 
 import config
 from execution.broker import CCXTBroker
-from execution.live_executor import build_bracket_order_intents, serialize_intents
+from execution.live_executor import build_bracket_order_intents, build_spot_execution_plan, serialize_intents
 from execution.position_sync import reconcile_state
 from execution.safety_guard import SafetyGuard
 from utils.market_mode import market_label, market_type, shorts_enabled
@@ -120,6 +120,10 @@ def place_bracket_orders(broker, intents):
         raise
 
 
+def place_spot_entry_order(broker, plan):
+    return broker.place_order(plan.entry)
+
+
 def run():
     args = parse_args()
     local_state = build_local_state()
@@ -177,14 +181,30 @@ def run():
         print(f"order_submission_aborted={exc}")
         return
 
-    intents = build_bracket_order_intents(
-        symbol=config.SYMBOL,
-        side=args.side,
-        size=args.size,
-        entry_price=args.entry_price,
-        stop_price=args.stop_price,
-        target_price=args.target_price,
-    )
+    if market_type() == "spot":
+        spot_plan = build_spot_execution_plan(
+            symbol=config.SYMBOL,
+            side=args.side,
+            size=args.size,
+            entry_price=args.entry_price,
+            stop_price=args.stop_price,
+            target_price=args.target_price,
+        )
+        intents = {
+            "entry": spot_plan.entry,
+            "stop": spot_plan.stop,
+            "target": spot_plan.target,
+        }
+    else:
+        spot_plan = None
+        intents = build_bracket_order_intents(
+            symbol=config.SYMBOL,
+            side=args.side,
+            size=args.size,
+            entry_price=args.entry_price,
+            stop_price=args.stop_price,
+            target_price=args.target_price,
+        )
 
     append_live_log(
         "place_bracket_requested",
@@ -203,6 +223,38 @@ def run():
 
     if broker is None:
         print("order_submission_aborted=broker_unavailable")
+        return
+
+    if market_type() == "spot":
+        try:
+            entry_order = place_spot_entry_order(broker, spot_plan)
+        except Exception as exc:
+            append_live_log(
+                "place_spot_entry_failed",
+                {
+                    "symbol": config.SYMBOL,
+                    "intents": serialize_intents(intents),
+                    "error": str(exc),
+                },
+            )
+            print(f"order_submission_status=failed error={exc}")
+            return
+
+        append_live_log(
+            "place_spot_entry_submitted",
+            {
+                "symbol": config.SYMBOL,
+                "entry_order": asdict(entry_order),
+                "pending_exit_intents": serialize_intents({"stop": spot_plan.stop, "target": spot_plan.target}),
+                "note": "submit exits only after entry fill is confirmed",
+            },
+        )
+        print("order_submission_status=submitted_entry_only")
+        print(
+            f"entry_order="
+            f"id={entry_order.order_id} type={entry_order.order_type} side={entry_order.side} status={entry_order.status}"
+        )
+        print("pending_exits=stop_and_target_must_be_submitted_after_fill")
         return
 
     try:

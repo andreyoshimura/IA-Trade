@@ -141,6 +141,7 @@ Efeito pratico:
 - novas entradas `SELL` ficam bloqueadas em modo spot
 - sinais de venda passam a ser ignorados como abertura de short
 - broker, data loader e executor live continuam configuraveis para voltar a `future` depois
+- em live Spot, a entrada e enviada primeiro e as ordens de saida devem ser enviadas apenas depois do fill
 
 Validacao atual:
 
@@ -295,6 +296,12 @@ Envio real de bracket order:
 ```bash
 ./venv/bin/python semi_auto.py --check-broker --place-bracket --side BUY --size 0.001 --entry-price 100000 --stop-price 99000 --target-price 102000 --confirm-live
 ```
+
+Fluxo real em Spot:
+
+- o comando envia apenas a ordem de entrada
+- stop e target ficam registrados como `pending exits`
+- as ordens de saida devem ser enviadas somente apos a entrada estar executada
 
 Interpretacao:
 

@@ -3,7 +3,7 @@ from datetime import datetime
 
 import config
 
-from execution.models import OrderIntent
+from execution.models import OrderIntent, SpotExecutionPlan
 from utils.market_mode import market_type, shorts_enabled
 
 
@@ -62,3 +62,13 @@ def build_bracket_order_intents(symbol, side, size, entry_price, stop_price, tar
 
 def serialize_intents(intents):
     return {name: asdict(intent) for name, intent in intents.items()}
+
+
+def build_spot_execution_plan(symbol, side, size, entry_price, stop_price, target_price):
+    intents = build_bracket_order_intents(symbol, side, size, entry_price, stop_price, target_price)
+    return SpotExecutionPlan(
+        entry=intents["entry"],
+        stop=intents["stop"],
+        target=intents["target"],
+        submit_exits_after_fill=True,
+    )
