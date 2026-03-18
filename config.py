@@ -63,6 +63,15 @@ ENABLE_LIVE_TRADING = False
 ENABLE_NOTIFICATIONS = True
 
 # ===============================
+# FASE 4 - SEMI-AUTOMACAO
+# ===============================
+
+LIVE_REQUIRE_MANUAL_CONFIRMATION = True
+LIVE_MAX_OPEN_ORDERS = 3
+LIVE_MIN_CAPITAL_RATIO = 0.85
+LIVE_RECONCILE_QTY_TOLERANCE = 0.00001
+
+# ===============================
 # PAPER TRADE
 # ===============================
 

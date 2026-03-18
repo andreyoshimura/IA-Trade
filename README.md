@@ -88,6 +88,13 @@ Logica resumida:
 - Controle de risco ativo
 - Monitoramento de falhas
 
+Base tecnica ja criada no repositorio:
+
+- `execution/broker.py`: interface de broker + adaptador inicial para `ccxt`
+- `execution/position_sync.py`: reconciliacao entre estado local e exchange
+- `execution/safety_guard.py`: travas para evitar operacao insegura
+- `semi_auto.py`: comando de readiness da Fase 4 sem enviar ordens por padrao
+
 ### Fase 5 - Automacao Total
 
 - Execucao completa
@@ -221,6 +228,13 @@ Execucao continua usando exchange:
 
 ```bash
 ./venv/bin/python paper_trade.py --source exchange
+```
+
+Readiness check da Fase 4:
+
+```bash
+./venv/bin/python semi_auto.py
+./venv/bin/python semi_auto.py --check-broker
 ```
 
 Arquivos gerados em `logs/`:
