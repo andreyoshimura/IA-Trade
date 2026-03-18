@@ -4,13 +4,18 @@ Sistema quantitativo de trading com foco em robustez estatistica, configurabilid
 
 ## Estado Atual
 
-- Fase atual: `Transicao Fase 3 -> Fase 4`
+- Fase atual: `Fase 4 inicial / pre-live operacional`
+- Fase 3: `concluida tecnicamente`
 - Estrategia ativa: `Breakout estrutural BTC/USDT 15m com filtro de tendencia em 1h em modo spot-first`
 - Status operacional:
   - paper trade em tempo real via Binance
   - alertas via Telegram
   - logs estruturados de sinais, trades e eventos
   - relatorio diario via Telegram
+  - broker spot validado com Binance
+  - readiness e reconciliacao operacionais
+  - envio real de entrada minima ja testado
+  - automacao de saida apos fill implementada
 
 ## Objetivo Principal
 
@@ -82,6 +87,7 @@ Logica resumida:
 - Alertas via Telegram
 - Registro estruturado
 - Diario automatico
+- Status: `concluida tecnicamente`
 
 ### Fase 4 - Semi-Automacao
 
@@ -89,6 +95,7 @@ Logica resumida:
 - Stop e target automaticos
 - Controle de risco ativo
 - Monitoramento de falhas
+- Status: `em andamento`
 
 Base tecnica ja criada no repositorio:
 
@@ -97,6 +104,13 @@ Base tecnica ja criada no repositorio:
 - `execution/position_sync.py`: reconciliacao entre estado local e exchange
 - `execution/safety_guard.py`: travas para evitar operacao insegura
 - `semi_auto.py`: comando de readiness da Fase 4 sem enviar ordens por padrao
+
+Marco atual da Fase 4:
+
+- conta Spot conectada e validada
+- reconciliacao com exchange funcionando
+- ordem real minima de entrada ja testada
+- fluxo Spot ajustado para enviar saidas apenas apos fill da entrada
 
 ## Dinheiro Real
 
