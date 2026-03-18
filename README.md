@@ -111,6 +111,7 @@ Marco atual da Fase 4:
 - conta Spot conectada e validada
 - reconciliacao com exchange funcionando
 - ordem real minima de entrada ja testada
+- entrada real ja executada e saida real ja testada
 - fluxo Spot ajustado para enviar saidas apenas apos fill da entrada
 - aprendizado operacional real incorporado: `0.00007 BTC` e pequeno demais para ciclo completo
 - protecao Spot agora valida o minimo nocional antes de tentar enviar OCO
@@ -119,7 +120,9 @@ Marco atual da Fase 4:
 
 Status atual:
 
-- o projeto ainda nao opera com dinheiro real
+- ja houve teste real com dinheiro real em Spot
+- o projeto ainda nao esta em live continuo
+- o ciclo completo com entrada executada + protecao ativa + reconciliacao final ainda nao foi validado
 - o projeto esta configurado em modo `spot-first`
 - `ENABLE_LIVE_TRADING = False` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
 - `LIVE_REQUIRE_MANUAL_CONFIRMATION = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L69)
@@ -133,7 +136,7 @@ Onde configurar:
 - tipos de ordem live e log operacional: [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L73)
 - readiness operacional: [semi_auto.py](/media/msx/SD200/VSCODE/github/IA-Trade/semi_auto.py)
 
-O projeto so deve passar para dinheiro real quando todos os pontos abaixo forem verdadeiros:
+O projeto so deve passar para operacao real continua quando todos os pontos abaixo forem verdadeiros:
 
 1. `ENABLE_LIVE_TRADING = True`
 2. reconciliacao com exchange aprovada
@@ -141,7 +144,7 @@ O projeto so deve passar para dinheiro real quando todos os pontos abaixo forem 
 4. executor real de ordens com stop e target validado
 5. capital minimo de entrada definido
 
-Enquanto qualquer item acima faltar, o estado correto do projeto e `paper trade / pre-live`.
+Enquanto qualquer item acima faltar, o estado correto do projeto e `pre-live operacional`.
 
 ## Modo de Mercado
 
@@ -337,15 +340,17 @@ Comportamento:
 Aprendizado do teste real:
 
 - uma entrada de `0.00007 BTC` conseguiu executar
+- uma saida real tambem foi executada para limpar a posicao de teste
 - mas ficou pequena demais para completar a protecao/saida com folga por causa de taxa e filtros de notional da Binance
 - por isso o minimo operacional recomendado para os proximos testes passou a ser `0.00008 BTC`
 - se a quantidade liquida apos taxa e arredondamento cair abaixo do minimo nocional, o bot agora falha explicitamente em vez de insistir com a exchange
 
 Interpretacao:
 
-- se `safety_allowed=False`, nao e momento de dinheiro real
+- ja foi provado que a conta consegue executar ordens reais
+- se `safety_allowed=False`, nao e momento de operar continuamente com dinheiro real
 - se houver `broker_state_desync`, a operacao deve continuar bloqueada
-- live so deve ser considerado quando os bloqueios de seguranca forem removidos de forma consciente
+- live continuo so deve ser considerado quando os bloqueios de seguranca forem removidos de forma consciente
 - toda tentativa de envio real fica registrada em `logs/live_orders.jsonl`
 
 Arquivos gerados em `logs/`:
