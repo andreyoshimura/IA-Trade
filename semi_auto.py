@@ -24,6 +24,7 @@ from execution.live_executor import build_bracket_order_intents, build_spot_exec
 from execution.models import BrokerOrder, BrokerPosition
 from execution.position_sync import reconcile_state
 from execution.safety_guard import SafetyGuard
+from notifier.telegram import send_message
 from utils.market_mode import market_label, market_type, shorts_enabled
 
 
@@ -96,6 +97,24 @@ def append_live_log(event, payload):
     row.update(payload)
     with open(config.LIVE_ORDER_LOG, "a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=True) + "\n")
+
+
+def notify_live(text):
+    if not getattr(config, "ENABLE_NOTIFICATIONS", False):
+        return False
+
+    try:
+        send_message(text)
+        return True
+    except Exception as exc:
+        append_live_log(
+            "live_notification_failed",
+            {
+                "error": str(exc),
+                "message": text,
+            },
+        )
+        return False
 
 
 def validate_bracket_args(args):
@@ -688,6 +707,12 @@ def run():
                     "final_exit_orders": live_state.get("final_exit_orders", []),
                 },
             )
+            notify_live(
+                f"[LIVE] EXIT {config.SYMBOL}\n"
+                f"Motivo: {sync_result['close_reason']}\n"
+                f"Entry: {entry_order.average or entry_order.price}\n"
+                f"Status final: fechado"
+            )
             print(f"live_sync_status=position_closed close_reason={sync_result['close_reason']}")
             return
 
@@ -712,6 +737,12 @@ def run():
                 "entry_order": asdict(entry_order),
                 "exit_orders": live_state["exit_orders"],
             },
+        )
+        notify_live(
+            f"[LIVE] OCO ativa {config.SYMBOL}\n"
+            f"Entry fill: {entry_order.average or entry_order.price}\n"
+            f"Stop: {live_state['pending_exit_intents']['stop']['stop_price']}\n"
+            f"Target: {live_state['pending_exit_intents']['target']['price']}"
         )
         print("live_sync_status=exit_orders_submitted")
         print(f"oco_order={json.dumps(oco_order, ensure_ascii=True)}")
@@ -795,6 +826,12 @@ def run():
             },
         )
         save_live_state(build_live_entry_state(entry_order, spot_plan))
+        notify_live(
+            f"[LIVE] ENTRY {entry_order.side} {config.SYMBOL}\n"
+            f"Preco: {entry_order.average or entry_order.price}\n"
+            f"Qtd: {entry_order.filled or entry_order.amount}\n"
+            f"Status: {entry_order.status}"
+        )
         print("order_submission_status=submitted_entry_only")
         print(
             f"entry_order="

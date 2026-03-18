@@ -13,6 +13,7 @@ from semi_auto import (
     build_live_entry_state,
     mark_live_state_exit_orders_submitted,
     mark_live_state_exit_submission_failed,
+    notify_live,
     place_spot_exit_orders,
     resolve_spot_exit_amount,
     run,
@@ -106,6 +107,23 @@ class EntryOrder:
 
 
 class Phase4SpotTests(unittest.TestCase):
+    def test_notify_live_sends_message_when_notifications_enabled(self):
+        with patch("semi_auto.send_message") as send_message_mock:
+            sent = notify_live("test message")
+
+        self.assertTrue(sent)
+        send_message_mock.assert_called_once_with("test message")
+
+    def test_notify_live_logs_failure_when_send_raises(self):
+        with patch("semi_auto.send_message", side_effect=RuntimeError("telegram_down")), patch(
+            "semi_auto.append_live_log"
+        ) as append_live_log_mock:
+            sent = notify_live("test message")
+
+        self.assertFalse(sent)
+        append_live_log_mock.assert_called_once()
+        self.assertEqual(append_live_log_mock.call_args.args[0], "live_notification_failed")
+
     def test_resolve_spot_exit_amount_uses_smallest_safe_amount(self):
         live_state = {
             "entry_filled": 0.4,
