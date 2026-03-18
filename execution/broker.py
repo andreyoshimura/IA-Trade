@@ -21,6 +21,10 @@ class BrokerInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def fetch_order(self, order_id: str, symbol: str) -> BrokerOrder:
+        raise NotImplementedError
+
+    @abstractmethod
     def place_order(self, intent: OrderIntent) -> BrokerOrder:
         raise NotImplementedError
 
@@ -70,6 +74,10 @@ class CCXTBroker(BrokerInterface):
                     raw=position,
                 )
         return None
+
+    def fetch_order(self, order_id: str, symbol: str) -> BrokerOrder:
+        order = self.exchange.fetch_order(order_id, symbol)
+        return self._map_order(order)
 
     def _fetch_spot_position(self, symbol: str) -> BrokerPosition | None:
         base_asset, _ = symbol_assets(symbol)

@@ -29,6 +29,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Readiness check da Fase 4")
     parser.add_argument("--check-broker", action="store_true", help="Consulta saldo, posicao e ordens na exchange")
     parser.add_argument("--place-bracket", action="store_true", help="Envia entrada, stop e target reais")
+    parser.add_argument("--sync-live", action="store_true", help="Sincroniza entry live e envia saidas apos fill")
     parser.add_argument("--side", choices=["BUY", "SELL"])
     parser.add_argument("--size", type=float)
     parser.add_argument("--entry-price", type=float)
@@ -44,6 +45,20 @@ def build_local_state():
 
     with open(config.PAPER_STATE_FILE, "r", encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def load_live_state():
+    if not os.path.exists(config.LIVE_STATE_FILE):
+        return {}
+
+    with open(config.LIVE_STATE_FILE, "r", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def save_live_state(state):
+    ensure_live_log_dir()
+    with open(config.LIVE_STATE_FILE, "w", encoding="utf-8") as fh:
+        json.dump(state, fh, indent=2)
 
 
 def format_reconciliation(reconciliation):
@@ -124,9 +139,38 @@ def place_spot_entry_order(broker, plan):
     return broker.place_order(plan.entry)
 
 
+def place_spot_exit_orders(broker, live_state):
+    stop_intent = live_state.get("pending_exit_intents", {}).get("stop")
+    target_intent = live_state.get("pending_exit_intents", {}).get("target")
+
+    if not stop_intent or not target_intent:
+        raise ValueError("missing_pending_exit_intents")
+
+    stop_order = broker.place_order(build_order_intent_from_state(stop_intent))
+    target_order = broker.place_order(build_order_intent_from_state(target_intent))
+    return {"stop": stop_order, "target": target_order}
+
+
+def build_order_intent_from_state(raw):
+    from execution.models import OrderIntent
+
+    return OrderIntent(
+        symbol=raw["symbol"],
+        side=raw["side"],
+        order_type=raw["order_type"],
+        amount=raw["amount"],
+        price=raw.get("price"),
+        stop_price=raw.get("stop_price"),
+        client_order_id=raw.get("client_order_id"),
+        reduce_only=raw.get("reduce_only", False),
+        metadata=raw.get("metadata", {}),
+    )
+
+
 def run():
     args = parse_args()
     local_state = build_local_state()
+    live_state = load_live_state()
     local_position = local_state.get("position")
 
     broker_orders = []
@@ -135,7 +179,7 @@ def run():
     broker = None
     broker_error = None
 
-    must_check_broker = args.check_broker or args.place_bracket
+    must_check_broker = args.check_broker or args.place_bracket or args.sync_live
 
     if must_check_broker:
         try:
@@ -171,6 +215,72 @@ def run():
     print(f"broker_error={broker_error}")
     print(f"safety_allowed={decision.allowed}")
     print(f"safety_reasons={decision.reasons}")
+
+    if args.sync_live:
+        if broker is None:
+            print("live_sync_aborted=broker_unavailable")
+            return
+
+        entry_order_id = live_state.get("entry_order_id")
+        if not entry_order_id:
+            print("live_sync_aborted=no_live_entry_state")
+            return
+
+        entry_order = broker.fetch_order(entry_order_id, config.SYMBOL)
+        print(
+            f"live_entry_status=id={entry_order.order_id} status={entry_order.status} "
+            f"filled={entry_order.filled} remaining={entry_order.remaining}"
+        )
+
+        if str(entry_order.status).upper() != "CLOSED":
+            append_live_log(
+                "spot_entry_sync_pending",
+                {
+                    "symbol": config.SYMBOL,
+                    "entry_order": asdict(entry_order),
+                },
+            )
+            print("live_sync_status=entry_not_filled_yet")
+            return
+
+        if live_state.get("exit_orders_submitted"):
+            print("live_sync_status=exits_already_submitted")
+            return
+
+        try:
+            exit_orders = place_spot_exit_orders(broker, live_state)
+        except Exception as exc:
+            append_live_log(
+                "spot_exit_submission_failed",
+                {
+                    "symbol": config.SYMBOL,
+                    "entry_order": asdict(entry_order),
+                    "error": str(exc),
+                },
+            )
+            print(f"live_sync_status=failed_to_submit_exits error={exc}")
+            return
+
+        live_state["entry_order_status"] = entry_order.status
+        live_state["entry_filled"] = entry_order.filled
+        live_state["exit_orders_submitted"] = True
+        live_state["exit_orders"] = {name: asdict(order) for name, order in exit_orders.items()}
+        save_live_state(live_state)
+        append_live_log(
+            "spot_exit_orders_submitted",
+            {
+                "symbol": config.SYMBOL,
+                "entry_order": asdict(entry_order),
+                "exit_orders": live_state["exit_orders"],
+            },
+        )
+        print("live_sync_status=exit_orders_submitted")
+        for name, order in exit_orders.items():
+            print(
+                f"{name}_order="
+                f"id={order.order_id} type={order.order_type} side={order.side} status={order.status}"
+            )
+        return
 
     if not args.place_bracket:
         return
@@ -248,6 +358,17 @@ def run():
                 "pending_exit_intents": serialize_intents({"stop": spot_plan.stop, "target": spot_plan.target}),
                 "note": "submit exits only after entry fill is confirmed",
             },
+        )
+        save_live_state(
+            {
+                "symbol": config.SYMBOL,
+                "market_mode": market_label(),
+                "entry_order_id": entry_order.order_id,
+                "entry_order": asdict(entry_order),
+                "pending_exit_intents": serialize_intents({"stop": spot_plan.stop, "target": spot_plan.target}),
+                "exit_orders_submitted": False,
+                "updated_at": utcnow_iso(),
+            }
         )
         print("order_submission_status=submitted_entry_only")
         print(

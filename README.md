@@ -302,6 +302,19 @@ Fluxo real em Spot:
 - o comando envia apenas a ordem de entrada
 - stop e target ficam registrados como `pending exits`
 - as ordens de saida devem ser enviadas somente apos a entrada estar executada
+- o arquivo `logs/live_state.json` guarda o estado da entrada live e das protecoes pendentes
+
+Sincronizacao apos fill em Spot:
+
+```bash
+./venv/bin/python semi_auto.py --check-broker --sync-live
+```
+
+Comportamento:
+
+- se a entrada ainda estiver aberta, o comando apenas registra que o fill ainda nao ocorreu
+- se a entrada estiver executada, o comando envia `stop` e `target`
+- se as saidas ja tiverem sido enviadas, o comando nao duplica ordens
 
 Interpretacao:
 
