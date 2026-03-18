@@ -97,6 +97,7 @@ Logica resumida:
 - Controle de risco ativo
 - Monitoramento de falhas
 - Status: `em andamento`
+- Sentimento de mercado em sentiment_filter.py
 
 Base tecnica ja criada no repositorio:
 
@@ -207,6 +208,21 @@ Ativos candidatos:
 Observacao:
 
 - esta fase nao e prioridade enquanto o sistema direcional principal ainda esta sendo consolidado
+
+### Fase 9 - Inteligencia Adaptativa (Melhorias de Edge)
+*Esta fase adiciona camadas de dados não-estruturados e ajustes dinâmicos sem alterar a lógica core de execução.*
+
+- **9.1 - Analise de Sentimento (NLP Engine):** - Integracao com APIs de noticias (NewsAPI/CryptoPanic) e redes sociais.
+    - Implementacao de um `Sentiment Score` como filtro de confirmacao (ex: evitar compras em momentos de panico mediatico extremo).
+- **9.2 - Autocorrecao de Algoritmo (Self-Healing):**
+    - Monitoramento de *Model Drift* em tempo real (degradacao da performance vs backtest).
+    - Ajuste automatico de parametros baseado na volatilidade e performance recente.
+
+### Fase 10 - Expansao de Inteligencia
+- **Deep Reinforcement Learning (RL):** Agentes que aprendem a otimizar o tamanho da posição e timing de saída.
+- **Dados On-chain:** Filtros baseados em fluxo de baleias e reservas em exchanges.
+
+## Benchmarking
 
 ## Resultado Validado
 
