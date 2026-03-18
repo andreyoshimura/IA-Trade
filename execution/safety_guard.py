@@ -41,7 +41,11 @@ class SafetyGuard:
             if live_state.get("last_exit_submission_error"):
                 reasons.append("live_exit_submission_failed")
 
-            if live_state.get("entry_order_id") and live_state.get("entry_order_status") == "CLOSED":
+            if (
+                live_state.get("entry_order_id")
+                and live_state.get("entry_order_status") == "CLOSED"
+                and not live_state.get("position_closed")
+            ):
                 if not live_state.get("exit_orders_submitted"):
                     reasons.append("live_position_without_submitted_exits")
 

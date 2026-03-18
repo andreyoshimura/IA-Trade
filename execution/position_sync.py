@@ -8,6 +8,9 @@ def expected_local_size(local_position, live_state):
     if not live_state:
         return 0.0
 
+    if live_state.get("position_closed"):
+        return 0.0
+
     entry_filled = live_state.get("entry_filled")
     if entry_filled is not None:
         return abs(float(entry_filled))
@@ -17,6 +20,8 @@ def expected_local_size(local_position, live_state):
 
 def expected_local_order_count(local_position, live_state):
     if live_state:
+        if live_state.get("position_closed"):
+            return 0
         if live_state.get("exit_orders_submitted"):
             return 2
         if live_state.get("entry_order_id"):

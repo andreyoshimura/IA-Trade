@@ -67,6 +67,15 @@ class FakeLifecycleBroker(FakeBroker):
         return self.entry_order
 
 
+class FakeClosedCycleBroker(FakeBroker):
+    def __init__(self, position_size, orders_by_id):
+        super().__init__(position_size=position_size)
+        self.orders_by_id = orders_by_id
+
+    def fetch_order(self, order_id, symbol):
+        return self.orders_by_id[order_id]
+
+
 class Args:
     def __init__(self, side="BUY", size=0.00008, entry_price=100.0, stop_price=95.0, target_price=110.0):
         self.side = side
@@ -306,6 +315,26 @@ class Phase4SpotTests(unittest.TestCase):
         self.assertFalse(decision.allowed)
         self.assertIn("live_position_without_submitted_exits", decision.reasons)
 
+    def test_safety_guard_allows_closed_live_cycle_without_submitted_exits(self):
+        guard = SafetyGuard(config)
+
+        decision = guard.evaluate(
+            runtime_capital=config.CAPITAL,
+            broker_orders=[],
+            reconciliation=None,
+            manual_confirmation_override=True,
+            broker_error=None,
+            live_state={
+                "entry_order_id": "entry-1",
+                "entry_order_status": "CLOSED",
+                "exit_orders_submitted": False,
+                "position_closed": True,
+            },
+        )
+
+        self.assertTrue(decision.allowed)
+        self.assertNotIn("live_position_without_submitted_exits", decision.reasons)
+
     def test_dry_run_spot_lifecycle_pending_then_submits_exits_after_fill(self):
         spot_plan = build_spot_execution_plan(
             symbol=config.SYMBOL,
@@ -354,7 +383,61 @@ class Phase4SpotTests(unittest.TestCase):
         failed_result = sync_spot_live_state(broker, live_state, broker_position=None)
 
         self.assertEqual(failed_result["status"], "failed_to_submit_exits")
-        self.assertEqual(live_state["last_exit_submission_error"], "missing_spot_position_for_exit")
+
+    def test_sync_spot_live_state_marks_position_closed_after_stop_fill(self):
+        entry_order = EntryOrder(order_id="entry-1", status="CLOSED", filled=0.4, remaining=0.0)
+        stop_order = EntryOrder(
+            order_id="stop-1",
+            side="SELL",
+            order_type="STOP_LOSS_LIMIT",
+            status="CLOSED",
+            amount=0.4,
+            filled=0.4,
+            remaining=0.0,
+            price=95.0,
+            average=96.0,
+        )
+        target_order = EntryOrder(
+            order_id="target-1",
+            side="SELL",
+            order_type="LIMIT",
+            status="EXPIRED",
+            amount=0.4,
+            filled=0.0,
+            remaining=0.4,
+            price=110.0,
+            average=None,
+        )
+        broker = FakeClosedCycleBroker(
+            position_size=0.0,
+            orders_by_id={
+                "entry-1": entry_order,
+                "stop-1": stop_order,
+                "target-1": target_order,
+            },
+        )
+        live_state = {
+            "symbol": config.SYMBOL,
+            "entry_order_id": "entry-1",
+            "entry_filled": 0.4,
+            "exit_orders_submitted": True,
+            "exit_orders": {"oco": {"orders": [{"orderId": "stop-1"}, {"orderId": "target-1"}]}},
+            "pending_exit_intents": {"stop": {"amount": 0.4}, "target": {"amount": 0.4}},
+        }
+
+        result = sync_spot_live_state(
+            broker,
+            live_state,
+            broker_position=None,
+            broker_orders=[],
+        )
+
+        self.assertEqual(result["status"], "position_closed")
+        self.assertEqual(result["close_reason"], "stop")
+        self.assertTrue(live_state["position_closed"])
+        self.assertEqual(live_state["entry_filled"], 0.0)
+        self.assertEqual(live_state["pending_exit_intents"], {})
+        self.assertIsNone(live_state["last_exit_submission_error"])
 
     def test_run_dry_run_prints_pending_and_filled_states(self):
         args = SimpleNamespace(

@@ -219,6 +219,22 @@ def mark_live_state_exit_orders_submitted(live_state, oco_order):
     return live_state
 
 
+def mark_live_state_position_closed(live_state, close_reason, exit_orders=None):
+    live_state["position_closed"] = True
+    live_state["close_reason"] = close_reason
+    live_state["closed_at"] = utcnow_iso()
+    live_state["closed_position_size"] = live_state.get("entry_filled")
+    live_state["entry_filled"] = 0.0
+    live_state["exit_orders_submitted"] = False
+    live_state["pending_exit_intents"] = {}
+    live_state["last_exit_submission_error"] = None
+    live_state["position_size_at_failed_exit"] = None
+    if exit_orders is not None:
+        live_state["final_exit_orders"] = [asdict(order) for order in exit_orders]
+    live_state["updated_at"] = utcnow_iso()
+    return live_state
+
+
 def build_live_entry_state(entry_order, spot_plan):
     return {
         "symbol": config.SYMBOL,
@@ -231,7 +247,32 @@ def build_live_entry_state(entry_order, spot_plan):
     }
 
 
-def sync_spot_live_state(broker, live_state, broker_position=None):
+def fetch_live_exit_orders(broker, live_state):
+    exit_order_refs = live_state.get("exit_orders", {}).get("oco", {}).get("orders", [])
+    exit_orders = []
+
+    for order_ref in exit_order_refs:
+        order_id = str(order_ref.get("orderId"))
+        if not order_id:
+            continue
+        exit_orders.append(broker.fetch_order(order_id, config.SYMBOL))
+
+    return exit_orders
+
+
+def resolve_spot_close_reason(exit_orders):
+    closed_order = next((order for order in exit_orders if order.status == "CLOSED"), None)
+    if closed_order is None:
+        return None
+
+    if closed_order.order_type == "STOP_LOSS_LIMIT":
+        return "stop"
+    if closed_order.order_type == "LIMIT":
+        return "target"
+    return "exit_filled"
+
+
+def sync_spot_live_state(broker, live_state, broker_position=None, broker_orders=None):
     entry_order_id = live_state.get("entry_order_id")
     if not entry_order_id:
         return {"status": "no_live_entry_state", "live_state": live_state}
@@ -247,6 +288,19 @@ def sync_spot_live_state(broker, live_state, broker_position=None):
         }
 
     if live_state.get("exit_orders_submitted"):
+        exit_orders = fetch_live_exit_orders(broker, live_state)
+        broker_position_size = abs(float(broker_position.size)) if broker_position else 0.0
+        dust_tolerance = float(getattr(config, "LIVE_BROKER_DUST_TOLERANCE", 0.0))
+        close_reason = resolve_spot_close_reason(exit_orders)
+        if close_reason and broker_position_size <= dust_tolerance and not (broker_orders or []):
+            mark_live_state_position_closed(live_state, close_reason, exit_orders=exit_orders)
+            return {
+                "status": "position_closed",
+                "entry_order": entry_order,
+                "close_reason": close_reason,
+                "exit_orders": exit_orders,
+                "live_state": live_state,
+            }
         return {
             "status": "exits_already_submitted",
             "entry_order": entry_order,
@@ -589,7 +643,12 @@ def run():
             print("live_sync_aborted=broker_unavailable")
             return
 
-        sync_result = sync_spot_live_state(broker, live_state, broker_position=broker_position)
+        sync_result = sync_spot_live_state(
+            broker,
+            live_state,
+            broker_position=broker_position,
+            broker_orders=broker_orders,
+        )
         status = sync_result["status"]
 
         if status == "no_live_entry_state":
@@ -617,6 +676,19 @@ def run():
 
         if status == "exits_already_submitted":
             print("live_sync_status=exits_already_submitted")
+            return
+
+        if status == "position_closed":
+            append_live_log(
+                "spot_position_closed",
+                {
+                    "symbol": config.SYMBOL,
+                    "entry_order": asdict(entry_order),
+                    "close_reason": sync_result["close_reason"],
+                    "final_exit_orders": live_state.get("final_exit_orders", []),
+                },
+            )
+            print(f"live_sync_status=position_closed close_reason={sync_result['close_reason']}")
             return
 
         if status == "failed_to_submit_exits":
