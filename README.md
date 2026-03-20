@@ -203,18 +203,18 @@ Incidente corrigido:
 
 Novo ciclo encerrado:
 
-- em `2026-03-20T00:59:48.693Z`, uma nova entrada real `BUY` de `0.0001 BTC` foi preenchida a `70222.11`
-- o OCO corrigido foi submetido com sucesso em `2026-03-20T01:00:04Z`
-- a perna de `stop` foi executada, com saida media observada em `69420.0`, e a perna de `target` expirou como esperado pela OCO
-- o `sync-live` reconheceu o fechamento por `stop` em `2026-03-20T21:25:39Z`
-- o `check-broker` seguinte confirmou estado final reconciliado em `2026-03-20T21:26:30Z`, com `local_size=0.0`, `broker_size=0.0`, `broker_orders=0` e `reconciliation=in_sync=True`
+- em `2026-03-20T21:34:26Z`, uma nova entrada real `BUY` de `0.0001 BTC` foi preenchida a `70563.22`
+- o OCO corrigido foi submetido com sucesso, com `stop trigger 69763.22`, `stop limit 69693.46` e `target 71763.22`
+- o teste foi encerrado manualmente para acelerar a homologacao, com venda `MARKET` de `0.0001 BTC` a preco medio `70514.66`
+- o `sync-live` reconheceu o fechamento por `manual_close` em `2026-03-20T21:40:48Z`
+- as duas pernas da OCO ficaram registradas como `CANCELED`, e o `check-broker` seguinte confirmou estado final reconciliado em `2026-03-20T21:41:03Z`, com `local_size=0.0`, `broker_size=0.0`, `broker_orders=0` e `reconciliation=in_sync=True`
 
 ## Dinheiro Real
 
 Status atual:
 
 - ja houve teste real com dinheiro real em Spot
-- em `2026-03-18` e `2026-03-20`, ciclos reais controlados de `0.0001 BTC` abriram posicao, ativaram OCO e encerraram via `stop`
+- em `2026-03-18` e `2026-03-20`, ciclos reais controlados de `0.0001 BTC` abriram posicao, ativaram OCO e encerraram com reconciliacao final limpa, inclusive em cenarios de `stop` e de `manual_close`
 - o projeto ainda nao esta em live continuo
 - o ciclo completo com entrada executada + protecao ativa + reconciliacao final ja foi validado ponta a ponta
 - no momento, nao ha posicao aberta nem ordens abertas, e o snapshot mais recente esta em `reconciliation=in_sync=True`

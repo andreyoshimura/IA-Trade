@@ -349,12 +349,13 @@ def sync_spot_live_state(broker, live_state, broker_position=None, broker_orders
     if live_state.get("exit_orders_submitted"):
         exit_orders = fetch_live_exit_orders(broker, live_state)
         close_reason = resolve_spot_close_reason(exit_orders)
-        if close_reason and broker_position_size <= dust_tolerance and not (broker_orders or []):
-            mark_live_state_position_closed(live_state, close_reason, exit_orders=exit_orders)
+        if broker_position_size <= dust_tolerance and not (broker_orders or []):
+            final_reason = close_reason or "manual_close"
+            mark_live_state_position_closed(live_state, final_reason, exit_orders=exit_orders)
             return {
                 "status": "position_closed",
                 "entry_order": entry_order,
-                "close_reason": close_reason,
+                "close_reason": final_reason,
                 "exit_orders": exit_orders,
                 "live_state": live_state,
             }

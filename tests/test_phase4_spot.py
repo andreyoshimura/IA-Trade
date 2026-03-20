@@ -492,6 +492,60 @@ class Phase4SpotTests(unittest.TestCase):
         self.assertEqual(live_state["entry_filled"], 0.0)
         self.assertEqual(live_state["pending_exit_intents"], {})
 
+    def test_sync_spot_live_state_marks_manual_close_after_exit_cancel_and_manual_sell(self):
+        entry_order = EntryOrder(order_id="entry-1", status="CLOSED", filled=0.4, remaining=0.0)
+        stop_order = EntryOrder(
+            order_id="stop-1",
+            side="SELL",
+            order_type="STOP_LOSS_LIMIT",
+            status="CANCELED",
+            amount=0.4,
+            filled=0.0,
+            remaining=0.4,
+            price=95.0,
+            average=None,
+        )
+        target_order = EntryOrder(
+            order_id="target-1",
+            side="SELL",
+            order_type="LIMIT",
+            status="CANCELED",
+            amount=0.4,
+            filled=0.0,
+            remaining=0.4,
+            price=110.0,
+            average=None,
+        )
+        broker = FakeClosedCycleBroker(
+            position_size=0.0,
+            orders_by_id={
+                "entry-1": entry_order,
+                "stop-1": stop_order,
+                "target-1": target_order,
+            },
+        )
+        live_state = {
+            "symbol": config.SYMBOL,
+            "entry_order_id": "entry-1",
+            "entry_filled": 0.4,
+            "exit_orders_submitted": True,
+            "exit_orders": {"oco": {"orders": [{"orderId": "stop-1"}, {"orderId": "target-1"}]}},
+            "pending_exit_intents": {"stop": {"amount": 0.4}, "target": {"amount": 0.4}},
+        }
+
+        result = sync_spot_live_state(
+            broker,
+            live_state,
+            broker_position=None,
+            broker_orders=[],
+        )
+
+        self.assertEqual(result["status"], "position_closed")
+        self.assertEqual(result["close_reason"], "manual_close")
+        self.assertTrue(live_state["position_closed"])
+        self.assertEqual(live_state["entry_filled"], 0.0)
+        self.assertEqual(live_state["pending_exit_intents"], {})
+
     def test_sync_spot_live_state_marks_position_closed_after_stop_fill(self):
         entry_order = EntryOrder(order_id="entry-1", status="CLOSED", filled=0.4, remaining=0.0)
         stop_order = EntryOrder(
