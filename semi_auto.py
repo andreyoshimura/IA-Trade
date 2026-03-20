@@ -74,6 +74,26 @@ def save_live_state(state):
         json.dump(state, fh, indent=2)
 
 
+def save_reconciliation_snapshot(reconciliation, broker_error=None):
+    ensure_live_log_dir()
+    payload = {
+        "updated_at": utcnow_iso(),
+        "reconciliation": None,
+        "broker_error": broker_error,
+    }
+    if reconciliation is not None:
+        payload["reconciliation"] = {
+            "in_sync": reconciliation.in_sync,
+            "local_position_size": reconciliation.local_position_size,
+            "broker_position_size": reconciliation.broker_position_size,
+            "open_orders_local": reconciliation.open_orders_local,
+            "open_orders_broker": reconciliation.open_orders_broker,
+            "issues": reconciliation.issues,
+        }
+    with open(config.LIVE_CHECK_BROKER_FILE, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2)
+
+
 def format_reconciliation(reconciliation):
     if reconciliation is None:
         return "reconciliation=not_run"
@@ -656,6 +676,7 @@ def run():
             )
         except Exception as exc:
             broker_error = str(exc)
+        save_reconciliation_snapshot(reconciliation, broker_error=broker_error)
 
     guard = SafetyGuard(config)
     capital = float(local_state.get("capital", config.PAPER_TRADE_CAPITAL))

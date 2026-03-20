@@ -1,5 +1,7 @@
 import io
 import json
+import os
+import tempfile
 from dataclasses import dataclass
 import unittest
 from types import SimpleNamespace
@@ -18,6 +20,7 @@ from semi_auto import (
     resolve_spot_exit_amount,
     run,
     run_dry_run,
+    save_reconciliation_snapshot,
     sync_spot_live_state,
     update_live_state_from_entry_order,
     validate_bracket_args,
@@ -206,6 +209,29 @@ class Phase4SpotTests(unittest.TestCase):
         self.assertIsNone(updated["last_exit_submission_error"])
         self.assertIsNone(updated["position_size_at_failed_exit"])
         self.assertIn("updated_at", updated)
+
+    def test_save_reconciliation_snapshot_persists_expected_fields(self):
+        result = reconcile_state(
+            local_position=None,
+            broker_position=BrokerPosition(symbol=config.SYMBOL, side="long", size=0.4),
+            broker_orders=[{"id": "oco-stop"}, {"id": "oco-target"}],
+            quantity_tolerance=0.00001,
+            live_state={"entry_filled": 0.4, "entry_order_id": "entry-1", "exit_orders_submitted": True},
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            snapshot_path = os.path.join(tmpdir, "check_broker.json")
+            with patch.object(config, "LIVE_CHECK_BROKER_FILE", snapshot_path):
+                save_reconciliation_snapshot(result, broker_error=None)
+
+            with open(snapshot_path, "r", encoding="utf-8") as fh:
+                payload = json.load(fh)
+
+        self.assertIn("updated_at", payload)
+        self.assertIsNone(payload["broker_error"])
+        self.assertTrue(payload["reconciliation"]["in_sync"])
+        self.assertEqual(payload["reconciliation"]["broker_position_size"], 0.4)
+        self.assertEqual(payload["reconciliation"]["open_orders_broker"], 2)
+        self.assertEqual(payload["reconciliation"]["issues"], [])
 
     def test_reconcile_state_accepts_live_entry_pending_without_protective_orders_yet(self):
         broker_position = None
@@ -684,6 +710,44 @@ class Phase4SpotTests(unittest.TestCase):
                 run()
 
         self.assertEqual(exc.exception.code, 1)
+
+    def test_run_check_broker_persists_snapshot_file(self):
+        args = SimpleNamespace(
+            dry_run=False,
+            check_broker=True,
+            place_bracket=False,
+            sync_live=False,
+            side=None,
+            size=None,
+            entry_price=None,
+            stop_price=None,
+            target_price=None,
+            dry_run_filled_size=None,
+            dry_run_failure=False,
+            dry_run_broker_error=False,
+            dry_run_json=False,
+            confirm_live=False,
+        )
+        fake_broker = SimpleNamespace(
+            fetch_open_orders=lambda symbol: [{"id": "oco-stop"}, {"id": "oco-target"}],
+            fetch_position=lambda symbol: BrokerPosition(symbol=symbol, side="long", size=0.4),
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            snapshot_path = os.path.join(tmpdir, "check_broker.json")
+            with patch("semi_auto.parse_args", return_value=args), patch("semi_auto.CCXTBroker", return_value=fake_broker), patch(
+                "semi_auto.build_local_state", return_value={}
+            ), patch("semi_auto.load_live_state", return_value={"entry_filled": 0.4, "entry_order_id": "entry-1", "exit_orders_submitted": True}), patch.object(
+                config, "LIVE_CHECK_BROKER_FILE", snapshot_path
+            ), patch("sys.stdout", new_callable=io.StringIO):
+                run()
+
+            with open(snapshot_path, "r", encoding="utf-8") as fh:
+                payload = json.load(fh)
+
+        self.assertTrue(payload["reconciliation"]["in_sync"])
+        self.assertEqual(payload["reconciliation"]["open_orders_broker"], 2)
+        self.assertIsNone(payload["broker_error"])
+
 
 
 if __name__ == "__main__":

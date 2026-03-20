@@ -201,23 +201,24 @@ Incidente corrigido:
 - a correcao aplicada no codigo passou a recalcular exits Spot a partir do fill real e a reconhecer `manual_close` com `dust`
 - o fluxo de notificacao do Telegram foi endurecido com retry para falhas transitórias e mascaramento do token nos erros
 
-Novo ciclo em andamento:
+Novo ciclo encerrado:
 
 - em `2026-03-20T00:59:48.693Z`, uma nova entrada real `BUY` de `0.0001 BTC` foi preenchida a `70222.11`
 - o OCO corrigido foi submetido com sucesso em `2026-03-20T01:00:04Z`
-- protecoes atuais: `stop trigger 69422.11`, `stop limit 69352.69`, `target 71422.11`
-- estado atual: posicao aberta, `exit_orders_submitted=True`, `broker_orders=2`, `reconciliation=in_sync=True`
+- a perna de `stop` foi executada, com saida media observada em `69420.0`, e a perna de `target` expirou como esperado pela OCO
+- o `sync-live` reconheceu o fechamento por `stop` em `2026-03-20T21:25:39Z`
+- o `check-broker` seguinte confirmou estado final reconciliado em `2026-03-20T21:26:30Z`, com `local_size=0.0`, `broker_size=0.0`, `broker_orders=0` e `reconciliation=in_sync=True`
 
 ## Dinheiro Real
 
 Status atual:
 
 - ja houve teste real com dinheiro real em Spot
-- em `2026-03-18`, dois ciclos reais controlados de `0.0001 BTC` abriram posicao, ativaram OCO e encerraram via `stop`
+- em `2026-03-18` e `2026-03-20`, ciclos reais controlados de `0.0001 BTC` abriram posicao, ativaram OCO e encerraram via `stop`
 - o projeto ainda nao esta em live continuo
 - o ciclo completo com entrada executada + protecao ativa + reconciliacao final ja foi validado ponta a ponta
-- no momento, ha um ciclo live controlado aberto, protegido por OCO e com `reconciliation=in_sync=True`
-- o proximo passo imediato e aguardar o fechamento natural deste ciclo e depois sincronizar o estado final com `--sync-live` e `--check-broker`
+- no momento, nao ha posicao aberta nem ordens abertas, e o snapshot mais recente esta em `reconciliation=in_sync=True`
+- o proximo passo imediato, se desejar nova homologacao, e abrir um novo ciclo controlado e repetir `--sync-live` seguido de `--check-broker`
 - o projeto esta configurado em modo `spot-first`
 - `ENABLE_LIVE_TRADING = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
 - `LIVE_REQUIRE_MANUAL_CONFIRMATION = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L69)
