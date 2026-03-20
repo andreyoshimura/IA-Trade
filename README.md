@@ -22,7 +22,7 @@ Sistema quantitativo de trading com foco em robustez estatistica, configurabilid
 
 - Estamos na `Fase 4 inicial / pre-live operacional`
 - O fluxo `spot-first` ja foi validado em paper trade, readiness e testes locais
-- O filtro de sentimento via `NewsAPI` ja foi integrado ao `paper_trade`, esta ativo e registra `sentiment_score`
+- O filtro de sentimento via `Alpha Vantage NEWS_SENTIMENT` ja foi integrado ao `paper_trade`, esta ativo e registra `sentiment_score`
 - Dois ciclos live controlados ja validaram `entrada real + fill + sync-live + protecoes OCO + saida final`
 - O projeto ainda nao esta em `live continuo`, porque ainda faltam mais repeticoes, consolidacao de metricas reais e confianca estatistica
 
@@ -179,6 +179,8 @@ Paper e sentimento:
 - trade observado: `ENTRY BUY` em `2026-03-16 03:30:00`, `EXIT` em `2026-03-16 08:30:00`, motivo `STOP`, `PnL = -1.18`, capital final `298.82`
 - amostra atual de sentimento: `3` sinais totais, `2` com `sentiment_score`, `0` bloqueios por sentimento
 - scores observados ate agora: `0.12280702` e `0.0`
+- a migracao de `NewsAPI` para `Alpha Vantage NEWS_SENTIMENT` foi validada tecnicamente em `2026-03-20` com testes, resposta real da API e execucao do pipeline
+- ainda falta um novo sinal operacional registrado em log para validar observacionalmente a nova fonte dentro de um `ENTRY` ou `SKIP_SENTIMENT_BLOCKED`
 - ainda nao ha base para recalibrar `SENTIMENT_THRESHOLD`, porque o minimo configurado continua em `20` sinais com score
 
 Live homologado:
@@ -309,7 +311,7 @@ Observacao:
 ### Fase 9 - Inteligencia Adaptativa (Melhorias de Edge)
 *Esta fase adiciona camadas de dados não-estruturados e ajustes dinâmicos sem alterar a lógica core de execução.*
 
-- **9.1 - Analise de Sentimento (NLP Engine):** - Integracao com APIs de noticias (NewsAPI/CryptoPanic) e redes sociais.
+- **9.1 - Analise de Sentimento (NLP Engine):** - Integracao com APIs de noticias (Alpha Vantage NEWS_SENTIMENT/CryptoPanic) e redes sociais.
     - Implementacao de um `Sentiment Score` como filtro de confirmacao (ex: evitar compras em momentos de panico mediatico extremo).
 - **9.2 - Autocorrecao de Algoritmo (Self-Healing):**
     - Monitoramento de *Model Drift* em tempo real (degradacao da performance vs backtest).
@@ -448,7 +450,7 @@ Filtro de sentimento:
 - o modulo fica em [strategy/sentiment_filter.py](/media/msx/SD200/VSCODE/github/IA-Trade/strategy/sentiment_filter.py)
 - a integracao atual acontece no [paper_trade.py](/media/msx/SD200/VSCODE/github/IA-Trade/paper_trade.py)
 - `ENABLE_SENTIMENT_FILTER = False` por padrao em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py)
-- a fonte externa atual e `NewsAPI`, via `SENTIMENT_API_KEY`
+- a fonte externa atual e `Alpha Vantage NEWS_SENTIMENT`, via `SENTIMENT_API_KEY`
 - sem chave, erro de rede ou resposta invalida, o filtro volta para score neutro (`0.0`)
 - quando ativado, sinais bloqueados por sentimento passam a ser registrados como `SKIP_SENTIMENT_BLOCKED`
 

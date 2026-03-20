@@ -28,9 +28,9 @@ class SentimentIntegrationTests(unittest.TestCase):
     def test_sentiment_filter_scores_positive_articles(self):
         sentiment_filter = SentimentFilter(api_key="key", max_articles=5)
         fake_articles = {
-            "articles": [
-                {"title": "Bitcoin rally and breakout", "description": "Bullish adoption growth", "content": ""},
-                {"title": "BTC surge", "description": "gain gain", "content": ""},
+            "feed": [
+                {"title": "Bitcoin rally", "summary": "Bullish adoption growth", "overall_sentiment_score": 0.6},
+                {"title": "BTC surge", "summary": "gain gain", "overall_sentiment_score": 0.4},
             ]
         }
 
@@ -44,8 +44,8 @@ class SentimentIntegrationTests(unittest.TestCase):
     def test_sentiment_filter_scores_negative_articles(self):
         sentiment_filter = SentimentFilter(api_key="key", max_articles=5)
         fake_articles = {
-            "articles": [
-                {"title": "Bitcoin crash", "description": "bearish selloff", "content": "hack fears"},
+            "feed": [
+                {"title": "Bitcoin crash", "summary": "bearish selloff", "overall_sentiment_score": -0.7},
             ]
         }
 
@@ -72,6 +72,7 @@ class SentimentIntegrationTests(unittest.TestCase):
         self.assertEqual(sentiment_filter.api_key, "abc")
         self.assertEqual(sentiment_filter.lookback_days, 5)
         self.assertEqual(sentiment_filter.max_articles, 12)
+        self.assertEqual(sentiment_filter.base_url, "https://www.alphavantage.co/query")
 
     def test_evaluate_sentiment_trade_defaults_to_allowed_without_filter(self):
         allowed, score = evaluate_sentiment_trade(None, "BUY")
