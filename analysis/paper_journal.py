@@ -17,6 +17,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 import config
+from analysis.log_dedup import dedupe_trade_rows
 from notifier.telegram import send_message
 
 
@@ -52,6 +53,7 @@ def load_trades():
     numeric_cols = ["entry", "exit", "stop", "target", "size", "pnl", "capital_after"]
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
+    df, _ = dedupe_trade_rows(df)
     return df
 
 

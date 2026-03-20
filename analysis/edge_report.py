@@ -17,6 +17,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 import config
+from analysis.log_dedup import dedupe_trade_rows
 from analysis.sentiment_report import load_signals
 from analysis.walk_forward import load_15m_data, run_backtest_window, CANDLES_PER_DAY_15M
 from backtest.backtester import Backtester
@@ -139,10 +140,7 @@ def load_paper_metrics():
             "duplicates_removed": 0,
         }
 
-    dedupe_keys = ["entry_timestamp", "exit_timestamp", "type", "entry", "exit", "size", "pnl"]
-    before = len(trades)
-    trades = trades.drop_duplicates(subset=dedupe_keys).copy()
-    duplicates_removed = before - len(trades)
+    trades, duplicates_removed = dedupe_trade_rows(trades)
 
     trades["pnl"] = pd.to_numeric(trades["pnl"], errors="coerce")
     pnl = trades["pnl"].dropna()

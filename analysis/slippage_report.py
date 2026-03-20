@@ -15,6 +15,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 import config
+from analysis.log_dedup import dedupe_trade_rows
 
 
 DEFAULT_COLUMNS = [
@@ -68,6 +69,7 @@ def load_trades():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
+    df, _ = dedupe_trade_rows(df)
     return df
 
 

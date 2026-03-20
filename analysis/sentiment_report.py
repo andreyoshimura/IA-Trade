@@ -15,6 +15,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 import config
+from analysis.log_dedup import dedupe_signal_rows
 
 
 def parse_args():
@@ -41,6 +42,7 @@ def load_signals():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
+    df, _ = dedupe_signal_rows(df)
     return df
 
 
