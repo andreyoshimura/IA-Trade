@@ -20,7 +20,12 @@ if ROOT_DIR not in sys.path:
 
 import config
 from execution.broker import CCXTBroker
-from execution.live_executor import build_bracket_order_intents, build_spot_execution_plan, serialize_intents
+from execution.live_executor import (
+    align_spot_exit_intents_to_fill,
+    build_bracket_order_intents,
+    build_spot_execution_plan,
+    serialize_intents,
+)
 from execution.models import BrokerOrder, BrokerPosition
 from execution.position_sync import reconcile_state
 from execution.safety_guard import SafetyGuard
@@ -298,6 +303,8 @@ def sync_spot_live_state(broker, live_state, broker_position=None, broker_orders
 
     entry_order = broker.fetch_order(entry_order_id, config.SYMBOL)
     update_live_state_from_entry_order(live_state, entry_order)
+    dust_tolerance = float(getattr(config, "LIVE_BROKER_DUST_TOLERANCE", 0.0))
+    broker_position_size = abs(float(broker_position.size)) if broker_position else 0.0
 
     if str(entry_order.status).upper() != "CLOSED":
         return {
@@ -306,10 +313,21 @@ def sync_spot_live_state(broker, live_state, broker_position=None, broker_orders
             "live_state": live_state,
         }
 
+    if (
+        live_state.get("last_exit_submission_error")
+        and broker_position_size <= dust_tolerance
+        and not (broker_orders or [])
+    ):
+        mark_live_state_position_closed(live_state, "manual_close")
+        return {
+            "status": "position_closed",
+            "entry_order": entry_order,
+            "close_reason": "manual_close",
+            "live_state": live_state,
+        }
+
     if live_state.get("exit_orders_submitted"):
         exit_orders = fetch_live_exit_orders(broker, live_state)
-        broker_position_size = abs(float(broker_position.size)) if broker_position else 0.0
-        dust_tolerance = float(getattr(config, "LIVE_BROKER_DUST_TOLERANCE", 0.0))
         close_reason = resolve_spot_close_reason(exit_orders)
         if close_reason and broker_position_size <= dust_tolerance and not (broker_orders or []):
             mark_live_state_position_closed(live_state, close_reason, exit_orders=exit_orders)
@@ -325,6 +343,11 @@ def sync_spot_live_state(broker, live_state, broker_position=None, broker_orders
             "entry_order": entry_order,
             "live_state": live_state,
         }
+
+    live_state["pending_exit_intents"] = align_spot_exit_intents_to_fill(
+        entry_order,
+        live_state.get("pending_exit_intents", {}),
+    )
 
     try:
         oco_order = place_spot_exit_orders(broker, live_state)

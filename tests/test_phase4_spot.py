@@ -22,7 +22,7 @@ from semi_auto import (
     update_live_state_from_entry_order,
     validate_bracket_args,
 )
-from execution.live_executor import build_spot_execution_plan
+from execution.live_executor import align_spot_exit_intents_to_fill, build_spot_execution_plan
 
 
 class FakeExchange:
@@ -284,6 +284,29 @@ class Phase4SpotTests(unittest.TestCase):
         self.assertEqual(result.broker_position_size, 0.0)
         self.assertEqual(result.issues, [])
 
+    def test_reconcile_state_accepts_dust_after_failed_live_exit_submission(self):
+        broker_position = BrokerPosition(symbol=config.SYMBOL, side="long", size=0.00000963)
+        live_state = {
+            "entry_filled": 0.0001,
+            "entry_order_id": "entry-1",
+            "exit_orders_submitted": False,
+            "last_exit_submission_error": "oco_failed",
+        }
+
+        result = reconcile_state(
+            local_position=None,
+            broker_position=broker_position,
+            broker_orders=[],
+            quantity_tolerance=0.00001,
+            live_state=live_state,
+            dust_tolerance=0.00001,
+        )
+
+        self.assertTrue(result.in_sync)
+        self.assertEqual(result.local_position_size, 0.0)
+        self.assertEqual(result.broker_position_size, 0.0)
+        self.assertEqual(result.issues, [])
+
     def test_safety_guard_blocks_when_broker_is_unavailable(self):
         guard = SafetyGuard(config)
 
@@ -401,6 +424,47 @@ class Phase4SpotTests(unittest.TestCase):
         failed_result = sync_spot_live_state(broker, live_state, broker_position=None)
 
         self.assertEqual(failed_result["status"], "failed_to_submit_exits")
+
+    def test_align_spot_exit_intents_to_fill_rebases_stop_and_target_on_real_fill(self):
+        entry_order = EntryOrder(status="CLOSED", price=110.0, average=100.0, filled=0.4)
+        pending_exit_intents = {
+            "stop": {"amount": 0.4, "price": 94.905, "stop_price": 95.0},
+            "target": {"amount": 0.4, "price": 120.0},
+        }
+
+        aligned = align_spot_exit_intents_to_fill(entry_order, pending_exit_intents)
+
+        self.assertAlmostEqual(aligned["stop"]["stop_price"], 85.0)
+        self.assertAlmostEqual(aligned["stop"]["price"], 84.915)
+        self.assertAlmostEqual(aligned["target"]["price"], 110.0)
+
+    def test_sync_spot_live_state_marks_manual_close_when_only_dust_remains(self):
+        entry_order = EntryOrder(order_id="entry-1", status="CLOSED", filled=0.0001, remaining=0.0)
+        broker = FakeLifecycleBroker(
+            position_size=0.00000963,
+            entry_order=entry_order,
+        )
+        live_state = {
+            "symbol": config.SYMBOL,
+            "entry_order_id": "entry-1",
+            "entry_filled": 0.0001,
+            "exit_orders_submitted": False,
+            "pending_exit_intents": {"stop": {"amount": 0.0001}, "target": {"amount": 0.0001}},
+            "last_exit_submission_error": "oco_failed",
+        }
+
+        result = sync_spot_live_state(
+            broker,
+            live_state,
+            broker_position=broker.fetch_position(config.SYMBOL),
+            broker_orders=[],
+        )
+
+        self.assertEqual(result["status"], "position_closed")
+        self.assertEqual(result["close_reason"], "manual_close")
+        self.assertTrue(live_state["position_closed"])
+        self.assertEqual(live_state["entry_filled"], 0.0)
+        self.assertEqual(live_state["pending_exit_intents"], {})
 
     def test_sync_spot_live_state_marks_position_closed_after_stop_fill(self):
         entry_order = EntryOrder(order_id="entry-1", status="CLOSED", filled=0.4, remaining=0.0)

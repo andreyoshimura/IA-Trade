@@ -72,3 +72,43 @@ def build_spot_execution_plan(symbol, side, size, entry_price, stop_price, targe
         target=intents["target"],
         submit_exits_after_fill=True,
     )
+
+
+def align_spot_exit_intents_to_fill(entry_order, pending_exit_intents):
+    if not pending_exit_intents:
+        return pending_exit_intents
+
+    filled_price = float(entry_order.average or entry_order.price or 0.0)
+    planned_entry_price = float(entry_order.price or 0.0)
+    if filled_price <= 0 or planned_entry_price <= 0:
+        return pending_exit_intents
+
+    stop_intent = dict(pending_exit_intents.get("stop", {}))
+    target_intent = dict(pending_exit_intents.get("target", {}))
+    if not stop_intent or not target_intent:
+        return pending_exit_intents
+
+    planned_stop_price = float(stop_intent.get("stop_price") or 0.0)
+    planned_target_price = float(target_intent.get("price") or 0.0)
+    if planned_stop_price <= 0 or planned_target_price <= 0:
+        return pending_exit_intents
+
+    stop_distance = abs(planned_entry_price - planned_stop_price)
+    target_distance = abs(planned_target_price - planned_entry_price)
+    if stop_distance <= 0 or target_distance <= 0:
+        return pending_exit_intents
+
+    if str(entry_order.side).upper() == "BUY":
+        adjusted_stop_trigger = filled_price - stop_distance
+        adjusted_target_price = filled_price + target_distance
+        stop_limit_price = adjusted_stop_trigger * (1 - float(getattr(config, "LIVE_STOP_LIMIT_OFFSET_PCT", 0.0)))
+    else:
+        adjusted_stop_trigger = filled_price + stop_distance
+        adjusted_target_price = filled_price - target_distance
+        stop_limit_price = adjusted_stop_trigger * (1 + float(getattr(config, "LIVE_STOP_LIMIT_OFFSET_PCT", 0.0)))
+
+    stop_intent["stop_price"] = adjusted_stop_trigger
+    stop_intent["price"] = stop_limit_price
+    target_intent["price"] = adjusted_target_price
+
+    return {"stop": stop_intent, "target": target_intent}

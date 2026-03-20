@@ -36,6 +36,36 @@ Sistema quantitativo de trading com foco em robustez estatistica, configurabilid
 - manter `semi_auto.py --check-broker` e o `dry-run` como gates operacionais antes de qualquer teste real adicional
 - so depois disso considerar o avancar de `pre-live operacional` para uma etapa mais proxima de `live continuo`
 
+## Checklist Operacional
+
+Antes do proximo ciclo:
+
+- rodar `./venv/bin/python semi_auto.py --check-broker`
+- confirmar `broker_error=None`
+- confirmar `reconciliation=in_sync=True`
+- confirmar ausencia de posicao aberta e de ordens abertas
+- manter `LIVE_REQUIRE_MANUAL_CONFIRMATION = True`
+- usar tamanho igual ou acima de `0.00008 BTC`
+
+Ciclo de observacao e sentimento:
+
+- rodar `./scripts/run_sentiment_cycle.sh`
+- verificar se o ciclo registrou `sentiment_score`
+- revisar `logs/sentiment_cycle.log`
+
+Se houver novo teste real controlado:
+
+- repetir `./venv/bin/python semi_auto.py --check-broker` imediatamente antes do envio
+- validar manualmente lado, tamanho, entrada, stop e target
+- confirmar que houve `sync-live` e submissao das protecoes apos fill
+- ao final, confirmar novamente ausencia de posicao residual e de ordens abertas
+
+Depois de cada ciclo:
+
+- registrar entrada, saida, motivo, PnL bruto e reconciliacao final
+- acumular pelo menos `20` sinais com `sentiment_score` antes de recalibrar `SENTIMENT_THRESHOLD`
+- so considerar avancar alem de `pre-live operacional` apos repeticoes sem falha operacional
+
 ## Objetivo Principal
 
 Construir um sistema automatizado, adaptativo e validado estatisticamente, capaz de operar de forma disciplinada em diferentes regimes de mercado.
@@ -136,7 +166,45 @@ Marco atual da Fase 4:
 - fluxo Spot ajustado para enviar saidas apenas apos fill da entrada
 - aprendizado operacional real incorporado: `0.00007 BTC` e pequeno demais para ciclo completo
 - protecao Spot agora valida o minimo nocional antes de tentar enviar OCO
+- em `2026-03-20`, um teste real controlado preencheu a entrada abaixo do preco planejado, rejeitou o OCO por relacao invalida de precos e foi encerrado manualmente com reconciliacao final limpa
+- o `sync-live` agora recalcula stop e target a partir do preco real de fill antes de submeter o OCO em Spot
+- a reconciliacao agora trata fechamento manual com `dust` residual como estado reconciliavel apos falha de exits
 - filtro de sentimento integrado no pipeline de sinal, mas desligado por padrao
+
+## Resumo Operacional Registrado
+
+Paper e sentimento:
+
+- ha um mesmo trade replayado `3` vezes nos logs de paper, nao `3` trades independentes
+- trade observado: `ENTRY BUY` em `2026-03-16 03:30:00`, `EXIT` em `2026-03-16 08:30:00`, motivo `STOP`, `PnL = -1.18`, capital final `298.82`
+- amostra atual de sentimento: `3` sinais totais, `2` com `sentiment_score`, `0` bloqueios por sentimento
+- scores observados ate agora: `0.12280702` e `0.0`
+- ainda nao ha base para recalibrar `SENTIMENT_THRESHOLD`, porque o minimo configurado continua em `20` sinais com score
+
+Live homologado:
+
+- ciclo live relevante registrado com entrada real `BUY` de `0.0001 BTC` em `2026-03-18T15:42:56.676Z`
+- entrada executada com preco medio `71288.26`
+- OCO submetido em `2026-03-18T15:43:13.497Z`
+- posicao encerrada por `stop` em `2026-03-19T01:59:35Z`
+- target expirou corretamente apos o fechamento
+- estado final atual: sem posicao aberta, sem ordens abertas e reconciliacao limpa
+
+Incidente corrigido:
+
+- em `2026-03-20T00:37:44.975Z`, uma nova entrada real `BUY` de `0.0001 BTC` foi preenchida a `70078.17`
+- o OCO planejado falhou porque o `stop-price` original ficou acima do preco real de fill, e a Binance rejeitou a relacao de precos
+- a posicao foi encerrada manualmente e restou apenas `dust` abaixo do minimo de venda Spot
+- o estado final voltou a `reconciliation=in_sync=True`, sem ordens abertas e sem posicao operacional relevante
+- a correcao aplicada no codigo passou a recalcular exits Spot a partir do fill real e a reconhecer `manual_close` com `dust`
+- o fluxo de notificacao do Telegram foi endurecido com retry para falhas transitórias e mascaramento do token nos erros
+
+Novo ciclo em andamento:
+
+- em `2026-03-20T00:59:48.693Z`, uma nova entrada real `BUY` de `0.0001 BTC` foi preenchida a `70222.11`
+- o OCO corrigido foi submetido com sucesso em `2026-03-20T01:00:04Z`
+- protecoes atuais: `stop trigger 69422.11`, `stop limit 69352.69`, `target 71422.11`
+- estado atual: posicao aberta, `exit_orders_submitted=True`, `broker_orders=2`, `reconciliation=in_sync=True`
 
 ## Dinheiro Real
 
@@ -146,8 +214,8 @@ Status atual:
 - em `2026-03-18`, dois ciclos reais controlados de `0.0001 BTC` abriram posicao, ativaram OCO e encerraram via `stop`
 - o projeto ainda nao esta em live continuo
 - o ciclo completo com entrada executada + protecao ativa + reconciliacao final ja foi validado ponta a ponta
-- no momento, nao ha posicao real aberta e o estado final esta reconciliado
-- o proximo passo e repetir esse ciclo em novos testes controlados antes de considerar live continuo
+- no momento, ha um ciclo live controlado aberto, protegido por OCO e com `reconciliation=in_sync=True`
+- o proximo passo imediato e aguardar o fechamento natural deste ciclo e depois sincronizar o estado final com `--sync-live` e `--check-broker`
 - o projeto esta configurado em modo `spot-first`
 - `ENABLE_LIVE_TRADING = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
 - `LIVE_REQUIRE_MANUAL_CONFIRMATION = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L69)

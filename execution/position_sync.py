@@ -51,6 +51,16 @@ def reconcile_state(
     order_count = len(broker_orders or [])
     local_order_count = expected_local_order_count(local_position, live_state)
 
+    if (
+        live_state
+        and live_state.get("last_exit_submission_error")
+        and broker_size_raw <= dust_tolerance
+        and order_count == 0
+    ):
+        local_size = 0.0
+        broker_size = 0.0
+        local_order_count = 0
+
     issues = []
 
     if abs(local_size - broker_size) > quantity_tolerance:
