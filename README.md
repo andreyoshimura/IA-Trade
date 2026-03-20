@@ -223,6 +223,14 @@ Status atual:
 - `ENABLE_LIVE_TRADING = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L62)
 - `LIVE_REQUIRE_MANUAL_CONFIRMATION = True` em [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py#L69)
 
+Pronto para proxima fase:
+
+- snapshot operacional mais recente em `2026-03-20T21:41:03Z`: `reconciliation=in_sync=True`
+- sem posicao aberta, sem ordens abertas e sem `broker_error`
+- fluxo homologado em cenarios de fechamento natural por `stop` e de encerramento manual por `manual_close`
+- snapshot persistido em [logs/check_broker.json](/media/msx/SD200/VSCODE/github/IA-Trade/logs/check_broker.json)
+- proxima decisao tecnica: manter homologacao manual ou definir criterios para operacao continua controlada
+
 Onde configurar:
 
 - tipo de mercado e shorts: [config.py](/media/msx/SD200/VSCODE/github/IA-Trade/config.py)
