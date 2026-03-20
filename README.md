@@ -563,6 +563,19 @@ Essa rotina:
 - roda `analysis/sentiment_report.py --limit 50`
 - grava a saida em `logs/sentiment_cycle.log`
 
+Campanha automatizada de coleta:
+
+```bash
+./scripts/run_sentiment_campaign.sh 8 900
+```
+
+Essa rotina:
+
+- repete o ciclo de sentimento por `N` rodadas
+- espera `sleep_seconds` entre rodadas
+- registra `scored_before`, `scored_after` e `scored_delta`
+- serve para acumular amostra observacional sem execucao manual repetitiva
+
 Relatorio semanal:
 
 ```bash
